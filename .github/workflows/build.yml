@@ -9,7 +9,8 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Pinned to a known Ubuntu image: ubuntu-latest has moved to a newer release
+    runs-on: ubuntu-24.04
     env:
       # Set this repository variable (Settings, Variables) to your HTTPS search server address
       SEARCH_API_BASE: ${{ vars.SEARCH_API_BASE }}
@@ -25,8 +26,33 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
+      - name: Install Android 16 (API 36) SDK packages
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER=$(command -v sdkmanager); fi
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+
       - name: Build debug APK
-        run: gradle :app:assembleDebug --no-daemon
+        run: |
+          set -o pipefail
+          gradle :app:assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log
+
+      # If the build failed, copy the compiler errors onto the run page, where they can be read without a sign-in
+      - name: Show build errors on the run page
+        if: failure()
+        run: |
+          grep -E '^e: |^w: |FAILURE|What went wrong|Could not|Failed to|Execution failed|Unresolved|error:' build.log \
+            | head -40 \
+            | while IFS= read -r line; do echo "::error::${line}"; done || true
+
+      - name: Keep the full build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: H-Media-Player-build-log
+          path: build.log
+          if-no-files-found: ignore
 
       - name: Unit tests
         run: gradle :app:testDebugUnitTest --no-daemon
