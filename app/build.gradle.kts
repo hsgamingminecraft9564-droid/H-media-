@@ -12,14 +12,25 @@ val searchApiBase: String = (project.findProperty("searchApiBase") as String?)
     ?: System.getenv("SEARCH_API_BASE")?.takeIf { it.isNotBlank() }
     ?: "https://search.example.com"
 
+// Fail the build early on a malformed address: https, a host name, and no path, query or user name
+run {
+    val placeholder = "https://search.example.com"
+    val address = searchApiBase.trimEnd('/')
+    if (address != placeholder && !Regex("^https://[A-Za-z0-9.-]+(:[0-9]+)?$").matches(address)) {
+        throw GradleException(
+            "SEARCH_API_BASE must be an https address with no path, for example https://search.yourdomain.com (got: $searchApiBase)"
+        )
+    }
+}
+
 android {
     namespace = "com.hmedia.player"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.hmedia.player"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 2
         versionName = "0.2.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

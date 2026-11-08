@@ -6,7 +6,7 @@ Each item says what was changed, and what still needs a person with a phone, a s
 ## Priority 1: build and release
 | Item | Status | Notes |
 |---|---|---|
-| Gradle wrapper | Done (bootstrap) | `gradlew` (Linux and macOS, run with `sh gradlew`) and `gradlew.bat` (Windows, untested) download the Gradle version pinned in `gradle/wrapper/gradle-wrapper.properties` and refuse to run it unless the SHA-256 matches. Tested here against a fake distribution: download, cache, wrong checksum, missing checksum. To replace it with Gradle's own wrapper jar, run `gradle wrapper --gradle-version 8.10.2` once on a machine with Gradle. |
+| Gradle wrapper | Done (bootstrap) | `gradlew` (Linux and macOS, run with `sh gradlew`) and `gradlew.bat` (Windows, untested) download the Gradle version pinned in `gradle/wrapper/gradle-wrapper.properties` and refuse to run it unless the SHA-256 matches. Tested here against a fake distribution: download, cache, wrong checksum, missing checksum. To replace it with Gradle's own wrapper jar, run `gradle wrapper --gradle-version 8.11.1` once on a machine with Gradle. |
 | CI builds the debug APK | Done | `.github/workflows/build.yml`. |
 | Unit tests and lint | Done in CI | Unit tests run on every build and must pass. Lint runs and its report is saved, but does not block the build yet. |
 | Fix build errors and warnings | Not verified | No Android build was possible here. The first CI run is the real test. |
@@ -95,4 +95,14 @@ Each item says what was changed, and what still needs a person with a phone, a s
 1. Run the first CI build and send the log of any failure.
 2. Deploy `search-server/` over HTTPS and set `SEARCH_API_BASE`.
 3. Run the device-test workflow once. Then run DEVICE-TEST-PLAN.md on real phones, starting with D01 to D10, then playback (D15 to D30), then Private Mode, permissions and the web viewer.
-4. On a machine with Gradle, run `gradle wrapper --gradle-version 8.10.2` and commit the generated files.
+4. On a machine with Gradle, run `gradle wrapper --gradle-version 8.11.1` and commit the generated files.
+
+## Update: the six open items
+| Item | Status | What changed | Still needs |
+|---|---|---|---|
+| Playback pause and reconnect handling | Done in code | A network stream that drops reconnects first; the decoder is changed only after repeated failures (`FailurePolicy`, tested). Reconnect rules live in `ReconnectPolicy` (tested). Pause cancels a waiting retry. A retry counts only after 10 seconds of stable play. | Device tests: calls, Bluetooth, headphone unplug, lock screen (`DEVICE-TEST-PLAN.md`). |
+| Search API URL validation | Done | `SearchUrl.checkBase` rejects non-https, spaces, user names, queries, paths and bad host names, with the messages in `SearchUrlTest`. The build fails early if `SEARCH_API_BASE` is malformed. | A real deployed server. |
+| Media protocol classification | Done | One shared list (`MediaClassifier`). Schemes are compared without case and without surrounding spaces (`MediaClassifierCaseTest`). | Confirm that each protocol plays with the shipped libVLC (device test). |
+| WebView JavaScript security | Done, with one choice left | Pop-up windows and permission requests (camera, microphone, location) are refused. File-URL access and mixed content are blocked. Web storage is off in Private Mode. Remote debugging is on only in debug builds. A crashed renderer does not close the app. Only http and https pages open (`WebPolicy`). Certificate errors are cancelled. | JavaScript stays on by default, because most result pages need it. The Settings switch turns it off. Per-page control is not possible. |
+| Missing Gradle wrapper files | Done, not run here | `gradlew` (sh), `gradlew.bat` and `gradle/wrapper/bootstrap.ps1` download the Gradle version pinned in `gradle-wrapper.properties`, check its SHA-256 (f397b287…, Gradle's published hash for 8.11.1), and run it. No wrapper jar is needed. | Run `sh gradlew :app:assembleDebug` once on a machine with internet to confirm it. On Linux or macOS, if the file loses its execute bit after a web upload, run `git update-index --chmod=+x gradlew`. |
+| Real Android device testing | Partly | `WelcomeGateTest` (instrumented test), `device-test.yml` (emulator, started by hand), `DEVICE-TEST-PLAN.md` (phone checklist). | Run them: no device or emulator run has happened yet. |

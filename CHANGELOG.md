@@ -44,9 +44,9 @@
 - Consent is required before the app continues.
 
 ## Build and project
-- Kotlin 2.2.10, Android Gradle Plugin 8.7.3, compile and target SDK 35 (Google Play requirement).
+- Kotlin 2.2.10, Android Gradle Plugin 8.9.1, compile and target SDK 36 (Android 16).
 - libVLC 3.7.6 (current Maven Central release).
-- Build workflow pins Gradle 8.10.2 and has least-privilege permissions.
+- Build workflow pins Gradle 8.11.1 and has least-privilege permissions.
 - Lock-screen media controls via androidx.media 1.7.0 (MediaSession).
 - Removed an unused second search client that bypassed the backend.
 - Removed unused strings, constants and imports.
@@ -70,7 +70,7 @@
 - Web pages: one rule for which pages may open (plain http and https only, no username or password). Scripts cannot open windows automatically; location is off; mixed content is never allowed. Tests.
 - Media addresses: scheme names are compared without case or spaces. Tests.
 - Reconnect: the decisions moved to ReconnectPolicy (delay grows to one minute; a user pause or a finished file never reconnects; retries count only after ten seconds of stable play). Tests.
-- Gradle: gradlew bootstrap for Linux and macOS, and gradlew.bat for Windows. Downloads the pinned Gradle 8.10.2 and checks its SHA-256 first. Tested against a fake distribution.
+- Gradle: gradlew bootstrap for Linux and macOS, and gradlew.bat for Windows. Downloads the pinned Gradle 8.11.1 and checks its SHA-256 first. Tested against a fake distribution.
 - Device testing: DEVICE-TEST-PLAN.md (35 cases) for real phones; an emulator workflow with one instrumented test for the welcome gate.
 - DEVELOPER-STATUS.md updated for every item.
 
@@ -80,3 +80,11 @@
 - Playlists and next/previous track.
 - IPTV viewer, picture viewer, full medieval font file, translations beyond English.
 - Not yet compiled: the first GitHub build may show errors. Send the failed log lines.
+
+## Round: protocol, URL, reconnect, WebView and test work
+- Network streams reconnect before the software decoder is tried (fixes a fallback that was spent on a dropped connection).
+- Media schemes are matched without case and without surrounding spaces.
+- The search server address is checked in code and at build time (https, host name, no path, query or user name).
+- WebView: pop-ups and permission requests refused; file-URL access off; web storage off in Private Mode; debugging only in debug builds; renderer crashes handled.
+- Gradle: `gradlew` and `gradlew.bat` download the pinned Gradle version and verify its checksum; no wrapper jar needed.
+- Device tests: `WelcomeGateTest` (emulator), `device-test.yml`, and `DEVICE-TEST-PLAN.md` for real phones.

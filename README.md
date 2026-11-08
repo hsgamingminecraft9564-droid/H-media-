@@ -24,7 +24,7 @@ then download the file from Artifacts. See `GITHUB-STEPS.md` for the full steps.
   smart engine switch, reset of what the engine learned, Private Mode switch, clear recent searches
 
 ## Supported Android versions
-Android 7.0 (API 24) and newer. Built and targeted for Android 15 (API 35). Not yet tested on a device.
+Android 7.0 (API 24) and newer. Built with Android 16 (API 36) tools and targeted for Android 16. Not yet tested on a device.
 
 ## Supported media addresses
 - Network: http, https, rtsp, rtmp, udp, mms (whether each plays depends on the libVLC build; to be tested)

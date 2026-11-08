@@ -14,9 +14,9 @@
 
 ## Building on your own computer
 Run `sh gradlew :app:assembleDebug` (Windows: `gradlew.bat :app:assembleDebug`). The script downloads
-Gradle 8.10.2 the first time, checks its checksum, and then builds. CI does not need it.
+Gradle 8.11.1 the first time, checks its checksum, and then builds. CI does not need it.
 
-Optional: on a computer with Gradle installed, run `gradle wrapper --gradle-version 8.10.2` once and commit
+Optional: on a computer with Gradle installed, run `gradle wrapper --gradle-version 8.11.1` once and commit
 the generated files. They replace the bootstrap script with Gradle's own wrapper.
 
 ## Device tests
