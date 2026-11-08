@@ -1,0 +1,52 @@
+name: Build APK
+
+permissions:
+  contents: read
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # Set this repository variable (Settings, Variables) to your HTTPS search server address
+      SEARCH_API_BASE: ${{ vars.SEARCH_API_BASE }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Build debug APK
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Unit tests
+        run: gradle :app:testDebugUnitTest --no-daemon
+
+      - name: Android lint
+        continue-on-error: true
+        run: gradle :app:lintDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: H-Media-Player-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Save test and lint reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: H-Media-Player-reports
+          path: |
+            app/build/reports/tests/
+            app/build/reports/lint-results-debug.html
+            app/build/test-results/
+          if-no-files-found: ignore
