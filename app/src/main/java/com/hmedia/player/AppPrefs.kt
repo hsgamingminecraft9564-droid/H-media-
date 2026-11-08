@@ -16,51 +16,86 @@ val LANGUAGES = listOf(
     "id" to "Bahasa Indonesia", "vi" to "Tiếng Việt", "th" to "ไทย", "bn" to "বাংলা"
 )
 
+// Each setting has a private state holder, a read-only property, and one setX function.
+// Because the state is private, no generated JVM setter clashes with the setX function.
 class AppPrefs(context: Context) {
     private val sp = context.getSharedPreferences("hmedia", Context.MODE_PRIVATE)
 
-    var theme by mutableStateOf(enumOr(sp.getString("theme", null), HTheme.BLOOD_IRON))
-        private set
-    var font by mutableStateOf(enumOr(sp.getString("font", null), HFont.MEDIEVAL))
-        private set
-    var language by mutableStateOf(sp.getString("lang", "en") ?: "en")
-        private set
-    var privateMode by mutableStateOf(sp.getBoolean("private", false))
-        private set
-    var consented by mutableStateOf(sp.getBoolean("consent", false))
-        private set
-    var recent by mutableStateOf(
+    private var themeState by mutableStateOf(enumOr(sp.getString("theme", null), HTheme.BLOOD_IRON))
+    val theme: HTheme get() = themeState
+    fun setTheme(t: HTheme) {
+        themeState = t
+        sp.edit().putString("theme", t.name).apply()
+    }
+
+    private var fontState by mutableStateOf(enumOr(sp.getString("font", null), HFont.MEDIEVAL))
+    val font: HFont get() = fontState
+    fun setFont(f: HFont) {
+        fontState = f
+        sp.edit().putString("font", f.name).apply()
+    }
+
+    private var languageState by mutableStateOf(sp.getString("lang", "en") ?: "en")
+    val language: String get() = languageState
+    fun setLanguage(tag: String) {
+        languageState = tag
+        sp.edit().putString("lang", tag).apply()
+    }
+
+    private var privateState by mutableStateOf(sp.getBoolean("private", false))
+    val privateMode: Boolean get() = privateState
+    fun setPrivateMode(on: Boolean) {
+        privateState = on
+        sp.edit().putBoolean("private", on).apply()
+    }
+
+    private var consentState by mutableStateOf(sp.getBoolean("consent", false))
+    val consented: Boolean get() = consentState
+    fun setConsent(on: Boolean) {
+        consentState = on
+        sp.edit().putBoolean("consent", on).apply()
+    }
+
+    // Scripts on web result pages. On by default, because most pages need them; can be turned off in Settings.
+    private var webScriptsState by mutableStateOf(sp.getBoolean("web_scripts", true))
+    val webScripts: Boolean get() = webScriptsState
+    fun setWebScripts(on: Boolean) {
+        webScriptsState = on
+        sp.edit().putBoolean("web_scripts", on).apply()
+    }
+
+    private var recentState by mutableStateOf(
         (sp.getString("recent", "") ?: "").split("\n").filter { it.isNotBlank() }
     )
-        private set
+    val recent: List<String> get() = recentState
 
-    fun setTheme(t: HTheme) { theme = t; sp.edit().putString("theme", t.name).apply() }
-    fun setFont(f: HFont) { font = f; sp.edit().putString("font", f.name).apply() }
-    fun setLanguage(tag: String) { language = tag; sp.edit().putString("lang", tag).apply() }
-    // Scripts on web result pages. On by default, because most pages need them; can be turned off in Settings.
-    var webScripts by mutableStateOf(sp.getBoolean("web_scripts", true))
-        private set
-    fun setWebScripts(on: Boolean) { webScripts = on; sp.edit().putBoolean("web_scripts", on).apply() }
-    fun setPrivateMode(on: Boolean) { privateMode = on; sp.edit().putBoolean("private", on).apply() }
-    fun setConsent(on: Boolean) { consented = on; sp.edit().putBoolean("consent", on).apply() }
+    private var engineState by mutableStateOf(sp.getString("engine", VoidPresets.DEFAULT_ID) ?: VoidPresets.DEFAULT_ID)
+    val engineId: String get() = engineState
+    fun setEngine(id: String) {
+        engineState = id
+        sp.edit().putString("engine", id).apply()
+    }
+
+    val learner = EngineLearner(context)
+
+    private var smartState by mutableStateOf(sp.getBoolean("smart", true))
+    val smartEngine: Boolean get() = smartState
+    fun setSmartEngine(on: Boolean) {
+        smartState = on
+        sp.edit().putBoolean("smart", on).apply()
+    }
 
     // Private Mode keeps nothing: no recent searches are saved.
     fun remember(query: String) {
         if (privateMode || query.isBlank()) return
-        recent = (listOf(query) + recent.filter { it != query }).take(20)
-        sp.edit().putString("recent", recent.joinToString("\n")).apply()
+        recentState = (listOf(query) + recentState.filter { it != query }).take(20)
+        sp.edit().putString("recent", recentState.joinToString("\n")).apply()
     }
 
-    var engineId by mutableStateOf(sp.getString("engine", VoidPresets.DEFAULT_ID) ?: VoidPresets.DEFAULT_ID)
-        private set
-    fun setEngine(id: String) { engineId = id; sp.edit().putString("engine", id).apply() }
-
-    val learner = EngineLearner(context)
-    var smartEngine by mutableStateOf(sp.getBoolean("smart", true))
-        private set
-    fun setSmartEngine(on: Boolean) { smartEngine = on; sp.edit().putBoolean("smart", on).apply() }
-
-    fun clearRecent() { recent = emptyList(); sp.edit().remove("recent").apply() }
+    fun clearRecent() {
+        recentState = emptyList()
+        sp.edit().remove("recent").apply()
+    }
 }
 
 private inline fun <reified T : Enum<T>> enumOr(name: String?, default: T): T =
