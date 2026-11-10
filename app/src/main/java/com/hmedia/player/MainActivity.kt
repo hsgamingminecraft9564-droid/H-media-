@@ -15,6 +15,11 @@ import android.os.Build
 import android.os.Bundle
 import android.webkit.CookieManager
 import android.webkit.WebResourceRequest
+import android.os.Message
+import android.webkit.GeolocationPermissions
+import android.webkit.PermissionRequest
+import android.webkit.RenderProcessGoneDetail
+import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import com.hmedia.player.web.WebPolicy
 import android.webkit.WebStorage
@@ -53,7 +58,6 @@ import androidx.core.os.LocaleListCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import com.hmedia.player.engine.VoidPresets
 
 // Holds the WebView without triggering Compose state writes while the view is being created
 private class WebHolder {
@@ -345,16 +349,32 @@ fun WebSearchScreen(url: String, privateMode: Boolean, webScripts: Boolean, onBa
                     settings.allowFileAccess = false
                     settings.allowContentAccess = false
                     settings.setSupportMultipleWindows(false)
+                    settings.allowFileAccessFromFileURLs = false
+                    settings.allowUniversalAccessFromFileURLs = false
+                    // Private Mode: pages cannot keep data on the phone
+                    settings.domStorageEnabled = !privateMode
+                    // Remote debugging of pages is allowed only in debug builds
+                    WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
                     webViewClient = object : WebViewClient() {
                         // Only web addresses load here. App links such as intent: or market: are blocked.
                         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                             return !WebPolicy.isAllowedPage(request.url.toString())
                         }
 
+                        // If the page's rendering process crashes, the search screen stays usable instead of closing the app
+                        override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean = true
+
                         // Certificate errors are never accepted: the page stays blocked
                         override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
                             handler.cancel()
                         }
+                    }
+                    // Pages cannot open pop-up windows, use the camera or microphone, or read the location
+                    webChromeClient = object : WebChromeClient() {
+                        override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message): Boolean = false
+                        override fun onPermissionRequest(request: PermissionRequest) = request.deny()
+                        override fun onGeolocationPermissionsShowPrompt(origin: String, callback: GeolocationPermissions.Callback) =
+                            callback.invoke(origin, false, false)
                     }
                     loadUrl(url)
                     holder.view = this
@@ -385,17 +405,6 @@ fun SettingsScreen(prefs: AppPrefs, onBack: () -> Unit) {
                     prefs.setLanguage(tag)
                     AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tag))
                 }
-            }
-        }
-        Section(stringResource(R.string.engine_title)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.smart_engine), modifier = Modifier.weight(1f))
-                Switch(checked = prefs.smartEngine, onCheckedChange = prefs::setSmartEngine)
-            }
-            Text(stringResource(R.string.smart_engine_note), style = MaterialTheme.typography.bodySmall)
-            TextButton(onClick = prefs.learner::reset) { Text(stringResource(R.string.reset_learning)) }
-            VoidPresets.ALL.forEach { p ->
-                OptionRow("${p.name}: ${p.note}", prefs.engineId == p.id) { prefs.setEngine(p.id) }
             }
         }
         Section(stringResource(R.string.privacy)) {

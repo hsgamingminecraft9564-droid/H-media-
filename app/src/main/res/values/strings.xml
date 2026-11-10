@@ -21,14 +21,10 @@
     <string name="language">Language</string>
     <string name="privacy">Privacy</string>
     <string name="clear_recent">Clear recent searches</string>
-    <string name="engine_title">Void engine</string>
-    <string name="engine_now">Engine: %1$s</string>
     <string name="play">Play</string>
     <string name="pause">Pause</string>
     <string name="now_playing">Now playing</string>
     <string name="paused">Paused</string>
-    <string name="stop">Stop</string>
-    <string name="playback_channel">Music playback</string>
     <string name="privacy_read">Read the privacy policy</string>
     <string name="privacy_title">Privacy</string>
     <string name="privacy_text">H Media Player keeps your settings, your recent searches, and what the engine learns about playback on this phone. None of that is uploaded.
@@ -48,7 +44,4 @@ This version has no ads and no accounts.</string>
     <string name="web_scripts">Scripts on web pages</string>
     <string name="web_scripts_note">Most web pages need scripts. Turn this off for a safer but plainer web view.</string>
     <string name="private_note">Private Mode is on. Recent searches are hidden and nothing new is saved.</string>
-    <string name="smart_engine">Smart engine (learns on this phone)</string>
-    <string name="smart_engine_note">It learns which preset works best on your Wi-Fi and mobile data. Everything stays on this phone and nothing is uploaded.</string>
-    <string name="reset_learning">Reset what the engine learned</string>
 </resources>

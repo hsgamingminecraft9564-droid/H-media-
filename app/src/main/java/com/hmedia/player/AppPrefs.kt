@@ -4,8 +4,6 @@ import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.hmedia.player.engine.EngineLearner
-import com.hmedia.player.engine.VoidPresets
 
 // Language tag to display name. Strings fall back to English until values-xx folders are added.
 val LANGUAGES = listOf(
@@ -68,22 +66,6 @@ class AppPrefs(context: Context) {
         (sp.getString("recent", "") ?: "").split("\n").filter { it.isNotBlank() }
     )
     val recent: List<String> get() = recentState
-
-    private var engineState by mutableStateOf(sp.getString("engine", VoidPresets.DEFAULT_ID) ?: VoidPresets.DEFAULT_ID)
-    val engineId: String get() = engineState
-    fun setEngine(id: String) {
-        engineState = id
-        sp.edit().putString("engine", id).apply()
-    }
-
-    val learner = EngineLearner(context)
-
-    private var smartState by mutableStateOf(sp.getBoolean("smart", true))
-    val smartEngine: Boolean get() = smartState
-    fun setSmartEngine(on: Boolean) {
-        smartState = on
-        sp.edit().putBoolean("smart", on).apply()
-    }
 
     // Private Mode keeps nothing: no recent searches are saved.
     fun remember(query: String) {

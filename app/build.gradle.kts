@@ -29,7 +29,7 @@ android {
 
     defaultConfig {
         applicationId = "com.hmedia.player"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 36
         versionCode = 2
         versionName = "0.2.0"
@@ -49,6 +49,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":voidengine"))
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.activity:activity-compose:1.9.2")

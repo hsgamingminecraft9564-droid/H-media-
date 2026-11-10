@@ -27,11 +27,6 @@
             </intent-filter>
         </activity>
 
-        <!-- Keeps music playing in the background, with a notification and lock-screen controls -->
-        <service
-            android:name=".PlaybackService"
-            android:exported="false"
-            android:foregroundServiceType="mediaPlayback" />
 
         <!-- Keeps the chosen app language after restart on Android 12 and older -->
         <service
