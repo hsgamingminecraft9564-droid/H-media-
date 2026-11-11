@@ -1,44 +1,34 @@
 package com.hmedia.player
 
-import android.Manifest
-import android.app.Activity
+import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.pm.ApplicationInfo
+import android.graphics.Bitmap
 import android.net.Uri
 import android.net.http.SslError
-import android.provider.Settings
-import android.widget.Toast
-import android.webkit.SslErrorHandler
-import androidx.core.app.ActivityCompat
-import androidx.webkit.WebSettingsCompat
-import androidx.webkit.WebViewFeature
-import android.os.Build
 import android.os.Bundle
-import android.webkit.CookieManager
-import android.webkit.WebResourceRequest
 import android.os.Message
+import android.webkit.CookieManager
 import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
 import android.webkit.RenderProcessGoneDetail
+import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
-import com.hmedia.player.web.WebPolicy
 import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -46,18 +36,18 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.foundation.Image
-import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.os.LocaleListCompat
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.webkit.WebSettingsCompat
+import androidx.webkit.WebViewFeature
+import com.hmedia.player.web.WebPolicy
 
 // Holds the WebView without triggering Compose state writes while the view is being created
 private class WebHolder {
@@ -70,57 +60,8 @@ class MainActivity : AppCompatActivity() {
         setContent {
             val prefs = remember { AppPrefs(applicationContext) }
             HMediaTheme(prefs.theme, prefs.font) {
-                HMediaApp(prefs)
+                AppShell(prefs)
             }
-        }
-    }
-}
-
-enum class Screen { WELCOME, HOME, RESULTS, WEB, SETTINGS, PLAYER }
-
-@Composable
-fun HMediaApp(prefs: AppPrefs) {
-    var screen by rememberSaveable { mutableStateOf(if (prefs.consented) Screen.HOME else Screen.WELCOME) }
-    var webQuery by rememberSaveable { mutableStateOf("") }
-    var webUrl by rememberSaveable { mutableStateOf("") }
-
-    // If playback is stopped from the notification while the player is open, go back home
-    val hasEngine = Playback.hasEngine
-    LaunchedEffect(hasEngine) {
-        if (!hasEngine && screen == Screen.PLAYER) screen = Screen.HOME
-    }
-
-    val ctx = LocalContext.current
-    // Notification permission is asked the first time music plays (Android 13 and newer)
-    val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
-    Surface(
-        modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        when (screen) {
-            Screen.WELCOME -> WelcomeScreen(prefs) { screen = Screen.HOME }
-            Screen.HOME -> HomeScreen(
-                prefs = prefs,
-                onSettings = { screen = Screen.SETTINGS },
-                onWeb = { q -> prefs.remember(q); webQuery = q; screen = Screen.RESULTS },
-                onPlay = { item ->
-                    if (Build.VERSION.SDK_INT >= 33) notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    if (Playback.play(ctx, prefs, item.uri, item.title)) {
-                        screen = Screen.PLAYER
-                    } else {
-                        Toast.makeText(ctx, Playback.status, Toast.LENGTH_LONG).show()
-                    }
-                },
-                onOpenPlayer = { screen = Screen.PLAYER }
-            )
-            Screen.RESULTS -> SearchResultsScreen(
-                query = webQuery,
-                onOpen = { u -> webUrl = u; screen = Screen.WEB },
-                onBack = { screen = Screen.HOME }
-            )
-            Screen.WEB -> WebSearchScreen(webUrl, prefs.privateMode, prefs.webScripts) { screen = Screen.RESULTS }
-            Screen.SETTINGS -> SettingsScreen(prefs) { screen = Screen.HOME }
-            Screen.PLAYER -> Playback.engine?.let { engine -> PlayerScreen(engine) { screen = Screen.HOME } }
         }
     }
 }
@@ -129,212 +70,168 @@ fun HMediaApp(prefs: AppPrefs) {
 fun WelcomeScreen(prefs: AppPrefs, onStart: () -> Unit) {
     var showPolicy by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxSize().background(Color(0xFF060606))) {
-    Image(
-        painter = painterResource(R.drawable.welcome_bg),
-        contentDescription = null,
-        modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter),
-        contentScale = ContentScale.FillWidth
-    )
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text("H", style = MaterialTheme.typography.displayLarge, color = MaterialTheme.colorScheme.primary)
-        Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
-        Text(stringResource(R.string.welcome_tagline), style = MaterialTheme.typography.bodyMedium)
-        Spacer(Modifier.height(32.dp))
-        Text(stringResource(R.string.welcome), style = MaterialTheme.typography.headlineLarge)
-        Spacer(Modifier.height(24.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(checked = prefs.consented, onCheckedChange = prefs::setConsent)
-            Text(
-                stringResource(R.string.consent_text),
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.weight(1f)
-            )
-        }
-        TextButton(onClick = { showPolicy = true }) { Text(stringResource(R.string.privacy_read)) }
-        if (showPolicy) {
-            AlertDialog(
-                onDismissRequest = { showPolicy = false },
-                confirmButton = { TextButton(onClick = { showPolicy = false }) { Text(stringResource(R.string.close)) } },
-                title = { Text(stringResource(R.string.privacy_title)) },
-                text = { Text(stringResource(R.string.privacy_text)) }
-            )
-        }
-        Spacer(Modifier.height(16.dp))
-        Button(onClick = onStart, enabled = prefs.consented, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.continue_guest))
-        }
-        OutlinedButton(
-            onClick = { prefs.setPrivateMode(true); onStart() },
-            enabled = prefs.consented,
-            modifier = Modifier.fillMaxWidth()
-        ) { Text(stringResource(R.string.private_mode)) }
-        OutlinedButton(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.sign_in_soon))
-        }
-    }
-    }
-}
-
-@Composable
-fun HomeScreen(
-    prefs: AppPrefs,
-    onSettings: () -> Unit,
-    onWeb: (String) -> Unit,
-    onPlay: (MediaItem) -> Unit,
-    onOpenPlayer: () -> Unit
-) {
-    val ctx = LocalContext.current
-    var query by rememberSaveable { mutableStateOf("") }
-    var hasAccess by remember { mutableStateOf(false) }
-    var results by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
-
-    val perms = if (Build.VERSION.SDK_INT >= 33)
-        arrayOf(Manifest.permission.READ_MEDIA_VIDEO, Manifest.permission.READ_MEDIA_AUDIO)
-    else arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
-    // Media access is asked only when the user wants results from this phone, and the reason is shown first
-    var permanentlyDenied by remember { mutableStateOf(false) }
-    val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
-        hasAccess = grants.values.any { granted -> granted }
-        val activity = ctx as? Activity
-        // After a second refusal Android stops showing the dialog: point the user to the app settings instead
-        permanentlyDenied = !hasAccess && activity != null &&
-            !ActivityCompat.shouldShowRequestPermissionRationale(activity, perms[0])
-    }
-    fun askForMedia() = permLauncher.launch(perms)
-
-    // Waits for typing to pause, so each keystroke does not start a new search
-    LaunchedEffect(query, hasAccess) {
-        delay(250)
-        results = if (hasAccess && query.isNotBlank())
-            withContext(Dispatchers.IO) { MediaSearch.search(ctx, query) }
-        else emptyList()
-    }
-
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                stringResource(R.string.app_name),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.weight(1f)
-            )
-            TextButton(onClick = onSettings) { Text(stringResource(R.string.settings)) }
-        }
-
-        // Now-playing strip: shows what is playing while you browse, and opens the player
-        if (Playback.hasEngine) {
-            Row(
-                Modifier.fillMaxWidth().clickable { onOpenPlayer() }.padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(Playback.title, maxLines = 1, style = MaterialTheme.typography.bodyMedium)
-                    Text(
-                        stringResource(if (Playback.playing) R.string.now_playing else R.string.paused),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                TextButton(onClick = { Playback.toggle() }) {
-                    Text(stringResource(if (Playback.playing) R.string.pause else R.string.play))
-                }
-            }
-        }
-
-        if (prefs.privateMode) {
-            Text(
-                stringResource(R.string.private_note),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        OutlinedTextField(
-            value = query,
-            onValueChange = { query = it },
-            placeholder = { Text(stringResource(R.string.search_hint)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { if (query.isNotBlank()) onWeb(query) })
+        Image(
+            painter = painterResource(R.drawable.welcome_bg),
+            contentDescription = null,
+            modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter),
+            contentScale = ContentScale.FillWidth
         )
-
-        // Autocomplete from recent searches (empty box shows the latest five)
-        if (!prefs.privateMode) prefs.recent
-            .filter { it.contains(query, ignoreCase = true) && it != query }
-            .take(5)
-            .forEach { s ->
+        // Scrolls, so every button stays reachable in landscape and at larger text sizes
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text("H", style = MaterialTheme.typography.displayLarge, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
+            Text(stringResource(R.string.welcome_tagline), style = MaterialTheme.typography.bodyMedium)
+            Spacer(Modifier.height(32.dp))
+            Text(stringResource(R.string.welcome), style = MaterialTheme.typography.headlineLarge)
+            Spacer(Modifier.height(24.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(checked = prefs.consented, onCheckedChange = prefs::setConsent)
                 Text(
-                    s,
-                    modifier = Modifier.fillMaxWidth().clickable { query = s }.padding(vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    stringResource(R.string.consent_text),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.weight(1f)
                 )
             }
-
-        if (query.isNotBlank()) {
-            Button(onClick = { onWeb(query) }, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-                Text(stringResource(R.string.search_web, query))
+            TextButton(onClick = { showPolicy = true }) { Text(stringResource(R.string.privacy_read)) }
+            if (showPolicy) {
+                AlertDialog(
+                    onDismissRequest = { showPolicy = false },
+                    confirmButton = { TextButton(onClick = { showPolicy = false }) { Text(stringResource(R.string.close)) } },
+                    title = { Text(stringResource(R.string.privacy_title)) },
+                    text = {
+                        // The policy is long, so it scrolls inside the dialog
+                        Column(Modifier.verticalScroll(rememberScrollState())) {
+                            Text(stringResource(R.string.privacy_text))
+                        }
+                    }
+                )
             }
-        }
-
-        if (!hasAccess && query.isNotBlank()) {
-            Text(stringResource(R.string.media_why), style = MaterialTheme.typography.bodySmall)
-            if (permanentlyDenied) {
-                TextButton(onClick = {
-                    ctx.startActivity(
-                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", ctx.packageName, null))
-                    )
-                }) { Text(stringResource(R.string.open_settings)) }
-            } else {
-                TextButton(onClick = { askForMedia() }) { Text(stringResource(R.string.allow_media)) }
+            Spacer(Modifier.height(16.dp))
+            Button(onClick = onStart, enabled = prefs.consented, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.continue_guest))
             }
-        }
-
-        LazyColumn(Modifier.weight(1f)) {
-            items(results) { item ->
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable { onPlay(item) }
-                        .padding(vertical = 12.dp)
-                ) {
-                    Text(item.title, maxLines = 1)
-                    Text(
-                        if (item.isVideo) stringResource(R.string.video) else stringResource(R.string.audio),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
+            OutlinedButton(
+                onClick = { prefs.setPrivateMode(true); onStart() },
+                enabled = prefs.consented,
+                modifier = Modifier.fillMaxWidth()
+            ) { Text(stringResource(R.string.private_mode)) }
+            OutlinedButton(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.sign_in_soon))
             }
         }
     }
 }
 
+// The web page. The page and its history are kept across rotation. If the page's rendering process
+// crashes, the page is replaced by a message with a Retry button instead of a dead view.
 @Composable
 fun WebSearchScreen(url: String, privateMode: Boolean, webScripts: Boolean, onBack: () -> Unit) {
+    // Page history saved when the screen pauses, restored when it is created again after rotation
+    val saved = rememberSaveable { Bundle() }
+    var attempt by remember { mutableStateOf(0) }
+    var crashed by remember { mutableStateOf(false) }
+
+    if (crashed) {
+        BackHandler { onBack() }
+        Column(Modifier.fillMaxSize().padding(16.dp)) {
+            TextButton(onClick = onBack) { Text(stringResource(R.string.back)) }
+            Text(stringResource(R.string.web_error_crashed), style = MaterialTheme.typography.bodyMedium)
+            Button(
+                onClick = {
+                    saved.clear()
+                    crashed = false
+                    attempt++
+                },
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+            ) { Text(stringResource(R.string.web_retry)) }
+        }
+    } else {
+        // A new key builds a fresh WebView
+        key(attempt) {
+            WebPage(url, privateMode, webScripts, saved, onBack, onCrashed = { crashed = true })
+        }
+    }
+}
+
+@SuppressLint("SetJavaScriptEnabled")
+@Composable
+private fun WebPage(
+    url: String,
+    privateMode: Boolean,
+    webScripts: Boolean,
+    saved: Bundle,
+    onBack: () -> Unit,
+    onCrashed: () -> Unit
+) {
     val holder = remember { WebHolder() }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var loading by remember { mutableStateOf(true) }
+    var failed by remember { mutableStateOf(false) }
 
     BackHandler {
         val w = holder.view
         if (w != null && w.canGoBack()) w.goBack() else onBack()
     }
 
-    // Private Mode clears web cookies and cache when leaving the search page
+    // Saves the page history when the screen pauses (this runs before Android saves the screen state
+    // for rotation), and pauses the page's timers while the app is not in front
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            val w = holder.view
+            if (w != null) {
+                if (event == Lifecycle.Event.ON_PAUSE) {
+                    w.saveState(saved)
+                    w.onPause()
+                } else if (event == Lifecycle.Event.ON_RESUME) {
+                    w.onResume()
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // Leaving the screen releases the WebView. Private Mode first clears cookies, cache and history.
     DisposableEffect(Unit) {
         onDispose {
-            if (privateMode) {
-                holder.view?.clearCache(true)
-                holder.view?.clearHistory()
-                CookieManager.getInstance().removeAllCookies(null)
-                WebStorage.getInstance().deleteAllData()
+            val w = holder.view
+            if (w != null) {
+                if (privateMode) {
+                    w.clearCache(true)
+                    w.clearHistory()
+                    CookieManager.getInstance().removeAllCookies(null)
+                    WebStorage.getInstance().deleteAllData()
+                }
+                w.destroy()
             }
+            holder.view = null
         }
     }
 
     Column(Modifier.fillMaxSize()) {
         TextButton(onClick = onBack) { Text(stringResource(R.string.back)) }
+        if (loading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        if (failed) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.web_error_load),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = {
+                    failed = false
+                    holder.view?.reload()
+                }) { Text(stringResource(R.string.web_retry)) }
+            }
+        }
         AndroidView(
             modifier = Modifier.fillMaxWidth().weight(1f),
             factory = { ctx ->
@@ -342,7 +239,7 @@ fun WebSearchScreen(url: String, privateMode: Boolean, webScripts: Boolean, onBa
                     settings.javaScriptEnabled = webScripts
                     settings.setJavaScriptCanOpenWindowsAutomatically(false)
                     settings.setGeolocationEnabled(false)
-                    settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW)
+                    settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                     if (WebViewFeature.isFeatureSupported(WebViewFeature.SAFE_BROWSING_ENABLE)) {
                         WebSettingsCompat.setSafeBrowsingEnabled(settings, true)
                     }
@@ -354,29 +251,59 @@ fun WebSearchScreen(url: String, privateMode: Boolean, webScripts: Boolean, onBa
                     // Private Mode: pages cannot keep data on the phone
                     settings.domStorageEnabled = !privateMode
                     // Remote debugging of pages is allowed only in debug builds
-                    WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
+                    val debuggable = (ctx.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+                    WebView.setWebContentsDebuggingEnabled(debuggable)
                     webViewClient = object : WebViewClient() {
                         // Only web addresses load here. App links such as intent: or market: are blocked.
                         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                             return !WebPolicy.isAllowedPage(request.url.toString())
                         }
 
-                        // If the page's rendering process crashes, the search screen stays usable instead of closing the app
-                        override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean = true
+                        override fun onPageStarted(view: WebView, pageUrl: String?, favicon: Bitmap?) {
+                            failed = false
+                        }
+
+                        override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                            if (request.isForMainFrame) failed = true
+                        }
+
+                        // A crashed rendering process leaves the WebView unusable. Returning true keeps the app
+                        // alive, and the screen swaps the dead view for a message with a Retry button.
+                        override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                            onCrashed()
+                            return true
+                        }
 
                         // Certificate errors are never accepted: the page stays blocked
                         override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
                             handler.cancel()
+                            failed = true
                         }
                     }
                     // Pages cannot open pop-up windows, use the camera or microphone, or read the location
                     webChromeClient = object : WebChromeClient() {
+                        override fun onProgressChanged(view: WebView, newProgress: Int) {
+                            loading = newProgress < 100
+                        }
+
                         override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message): Boolean = false
                         override fun onPermissionRequest(request: PermissionRequest) = request.deny()
                         override fun onGeolocationPermissionsShowPrompt(origin: String, callback: GeolocationPermissions.Callback) =
                             callback.invoke(origin, false, false)
                     }
-                    loadUrl(url)
+                    // A download link opens in the phone's own browser, which handles files safely
+                    setDownloadListener { downloadUrl, _, _, _, _ ->
+                        if (WebPolicy.isAllowedPage(downloadUrl)) {
+                            runCatching {
+                                ctx.startActivity(
+                                    Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl))
+                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                            }
+                        }
+                    }
+                    // After rotation the saved page and history come back; otherwise the search page loads
+                    if (saved.isEmpty() || restoreState(saved) == null) loadUrl(url)
                     holder.view = this
                 }
             }
