@@ -23,10 +23,9 @@ the generated files. They replace the bootstrap script with Gradle's own wrapper
 Run the emulator tests from the Actions tab: "Device tests (emulator)", then "Run workflow".
 Real-phone testing follows DEVICE-TEST-PLAN.md, which lists 35 cases with steps and expected results.
 
-## Before the search works
-Deploy `search-server/` behind HTTPS (see its README). Then, in GitHub, open Settings, then Variables, and add a
-repository variable named `SEARCH_API_BASE` with the HTTPS address. Run the build again.
-Until then the results screen says the search server is not set up yet.
+## Internet search
+The internet search opens DuckDuckGo pages inside the app. It needs no server and no setup.
+The `search-server/` folder is kept for a future search service and is not used by the current screens.
 
 ## Background music on your phone
 For music to keep playing with the screen off, set H Media Player's battery usage to "No restrictions"

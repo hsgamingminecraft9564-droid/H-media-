@@ -48,6 +48,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewFeature
 import com.hmedia.player.web.WebPolicy
+import com.hmedia.player.i18n.AppLanguage
 
 // Holds the WebView without triggering Compose state writes while the view is being created
 private class WebHolder {
@@ -327,10 +328,14 @@ fun SettingsScreen(prefs: AppPrefs, onBack: () -> Unit) {
             HFont.entries.forEach { f -> OptionRow(f.label, prefs.font == f) { prefs.setFont(f) } }
         }
         Section(stringResource(R.string.language)) {
-            LANGUAGES.forEach { (tag, name) ->
-                OptionRow(name, prefs.language == tag) {
-                    prefs.setLanguage(tag)
-                    AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tag))
+            OptionRow(stringResource(R.string.language_system_default), prefs.language == "system") {
+                prefs.setLanguage("system")
+                AppLanguage.setLanguage(null)
+            }
+            AppLanguage.supported.forEach { lang ->
+                OptionRow(lang.nativeName, prefs.language == lang.tag) {
+                    prefs.setLanguage(lang.tag)
+                    AppLanguage.setLanguage(lang.tag)
                 }
             }
         }

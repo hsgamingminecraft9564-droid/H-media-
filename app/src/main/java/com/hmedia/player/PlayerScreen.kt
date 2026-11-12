@@ -41,6 +41,7 @@ import com.hmedia.voidengine.VoidEngine
 import com.hmedia.voidengine.togglePlayPause
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.compose.ui.res.painterResource
 
 private val SPEEDS = listOf(1f, 1.25f, 1.5f, 2f)
 
@@ -202,10 +203,20 @@ private fun MediaSurface(engine: VoidEngine, isAudio: Boolean, artwork: ImageBit
             }
         }
     } else {
-        AndroidView(
-            modifier = modifier,
-            factory = { c -> SurfaceView(c).also { engine.attachVideoView(it) } }
-        )
+        // The picture takes the shape of the video (widescreen, portrait, square), so the whole
+        // frame shows with black bars where needed, as in other video players.
+        val snap by engine.snapshot.collectAsState()
+        val ratio = if (snap.videoWidth > 0 && snap.videoHeight > 0) {
+            snap.videoWidth.toFloat() / snap.videoHeight.toFloat()
+        } else {
+            16f / 9f
+        }
+        Box(modifier.background(Color.Black), contentAlignment = Alignment.Center) {
+            AndroidView(
+                modifier = Modifier.aspectRatio(ratio),
+                factory = { c -> SurfaceView(c).also { engine.attachVideoView(it) } }
+            )
+        }
     }
 }
 
@@ -239,11 +250,25 @@ private fun PlayerTransport(engine: VoidEngine, playWhenReady: Boolean, position
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            TextButton(onClick = { Playback.previous() }) { Text(stringResource(R.string.player_previous)) }
+            TextButton(onClick = { Playback.previous() }) {
+                Icon(painterResource(R.drawable.ic_previous), contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(stringResource(R.string.player_previous))
+            }
             Button(onClick = { engine.togglePlayPause() }) {
+                Icon(
+                    painterResource(if (playWhenReady) R.drawable.ic_pause else R.drawable.ic_play),
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(4.dp))
                 Text(stringResource(if (playWhenReady) R.string.pause else R.string.play))
             }
-            TextButton(onClick = { Playback.next() }) { Text(stringResource(R.string.player_next)) }
+            TextButton(onClick = { Playback.next() }) {
+                Icon(painterResource(R.drawable.ic_next), contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(stringResource(R.string.player_next))
+            }
         }
 
         Row(
@@ -252,9 +277,13 @@ private fun PlayerTransport(engine: VoidEngine, playWhenReady: Boolean, position
             verticalAlignment = Alignment.CenterVertically
         ) {
             TextButton(onClick = { Playback.toggleShuffle() }) {
+                Icon(painterResource(R.drawable.ic_shuffle), contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
                 Text(stringResource(if (Playback.shuffle) R.string.player_shuffle_on else R.string.player_shuffle_off))
             }
             TextButton(onClick = { Playback.cycleRepeat() }) {
+                Icon(painterResource(R.drawable.ic_repeat), contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
                 Text(stringResource(repeatLabel(Playback.repeat)))
             }
         }

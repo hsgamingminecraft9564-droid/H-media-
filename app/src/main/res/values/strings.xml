@@ -94,4 +94,10 @@ This version has no ads and no accounts.</string>
     <string name="iptv_err_host">The playlist server could not be found. Check the address and your connection.</string>
     <string name="iptv_err_timeout">The playlist server took too long to answer.</string>
     <string name="iptv_err_network">The playlist could not be loaded. Check your connection and the address.</string>
+    <string name="app_language">App language</string>
+    <string name="language_system_default">System default</string>
+    <string name="language_english">English</string>
+    <string name="language_search_hint">Search languages</string>
+    <string name="language_apply">Apply</string>
+    <string name="language_restart_note">The app may need to restart to apply the language.</string>
 </resources>

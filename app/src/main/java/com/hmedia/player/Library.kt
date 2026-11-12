@@ -6,10 +6,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
@@ -103,7 +106,7 @@ fun LibraryScreen(prefs: AppPrefs, isVideo: Boolean, onPlayed: () -> Unit) {
             } else {
                 LazyColumn(Modifier.weight(1f)) {
                     itemsIndexed(shown) { index, item ->
-                        Column(
+                        Row(
                             Modifier.fillMaxWidth()
                                 .clickable {
                                     message = ""
@@ -113,19 +116,26 @@ fun LibraryScreen(prefs: AppPrefs, isVideo: Boolean, onPlayed: () -> Unit) {
                                         message = Playback.status
                                     }
                                 }
-                                .padding(vertical = 12.dp)
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                item.title,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            Text(
-                                stringResource(if (item.isVideo) R.string.video else R.string.audio),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Box(Modifier.size(width = 96.dp, height = 54.dp).clip(RoundedCornerShape(8.dp))) {
+                                ThumbOrBanner(item.uri, Modifier.fillMaxSize())
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    item.title,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Text(
+                                    stringResource(if (item.isVideo) R.string.video else R.string.audio),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }

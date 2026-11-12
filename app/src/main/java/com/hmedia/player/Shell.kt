@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.compose.ui.res.painterResource
 
 enum class Dest { HOME, VIDEO, MUSIC, IPTV, WEB, SETTINGS, PLAYER }
 
@@ -157,7 +158,7 @@ private fun BottomBar(current: Dest, onSelect: (Dest) -> Unit) {
             NavigationBarItem(
                 selected = current == d,
                 onClick = { onSelect(d) },
-                icon = { Text(stringResource(label).take(1), style = MaterialTheme.typography.titleMedium) },
+                icon = { Icon(painterResource(navIcon(d)), contentDescription = null) },
                 label = { Text(stringResource(label)) }
             )
         }
@@ -176,10 +177,18 @@ private fun SideRail(current: Dest, onSelect: (Dest) -> Unit) {
                 NavigationRailItem(
                     selected = current == d,
                     onClick = { onSelect(d) },
-                    icon = { Text(stringResource(label).take(1), style = MaterialTheme.typography.titleMedium) },
+                    icon = { Icon(painterResource(navIcon(d)), contentDescription = null) },
                     label = { Text(stringResource(label), maxLines = 1) }
                 )
             }
         }
     }
+}
+
+private fun navIcon(dest: Dest): Int = when (dest) {
+    Dest.HOME -> R.drawable.ic_home
+    Dest.VIDEO -> R.drawable.ic_video
+    Dest.MUSIC -> R.drawable.ic_music
+    Dest.IPTV -> R.drawable.ic_network
+    else -> R.drawable.ic_settings
 }

@@ -1,0 +1,222 @@
+H MEDIA PLAYER — DEVELOPER FIX SUMMARY
+========================================
+
+PURPOSE
+This document lists the main issues identified during the review of
+HMediaPlayer-FINAL.zip and gives developers practical repair tasks.
+
+AUDIT LIMITATION
+The project has NOT been proven to build or run successfully. The archive
+does not include a Gradle wrapper (gradlew / gradlew.bat). A complete Android
+build and real-device playback tests were not completed. Treat source-level
+findings as items to verify with builds and tests, not as proof that every
+possible defect has been found.
+
+PRIORITY 1 — BUILD AND RELEASE PIPELINE
+Files/area: Project root and Gradle configuration
+
+Problems:
+- No Gradle wrapper is included.
+- No successful APK build or automated test evidence was found.
+- App version and documentation version are inconsistent.
+
+Developer tasks:
+1. Add a Gradle wrapper compatible with the project's Android Gradle Plugin.
+2. Add CI (for example, GitHub Actions) to build the debug APK.
+3. Run unit tests and Android lint.
+4. Fix build errors and investigate meaningful warnings.
+5. Align versionName/versionCode and documentation.
+6. Save build logs and attach the generated APK to a test release.
+
+Acceptance tests:
+- A clean checkout builds without relying on a developer's local setup.
+- CI builds the debug APK successfully.
+- Tests and lint complete, with failures fixed or documented.
+
+PRIORITY 2 — SEARCH BACKEND
+File: search/SearchApi.kt and backend configuration
+
+Problem:
+- The search API URL is a placeholder (search.example.com). Online search
+  will not work until a real backend is deployed and configured.
+
+Developer tasks:
+1. Deploy the search backend to a real HTTPS endpoint.
+2. Configure the Android app to use that endpoint.
+3. Keep provider API keys on the server, never inside the APK.
+4. Validate request parameters and handle HTTP errors and timeouts.
+5. Add loading, empty-result, offline and error states.
+6. Add tests for successful and failed API responses.
+
+Acceptance tests:
+- Search returns results on a real device.
+- Invalid requests and server outages show useful errors.
+- No secret API key is exposed in the APK or repository.
+
+PRIORITY 3 — PLAYBACK ENGINE
+File: engine/VoidEngine.kt
+
+Issues to investigate/fix:
+- Audio focus uses the older requestAudioFocus pattern.
+- Delayed reconnect logic may restart playback after the user pauses.
+- VLC event callbacks may perform player operations or update UI state
+  directly from an event thread.
+- Reconnect attempts need protection against duplicates and stale callbacks.
+
+Developer tasks:
+1. Use AudioFocusRequest on Android 8.0 (API 26) and newer. Keep a
+   compatibility path only if older Android versions are supported.
+2. Keep a reference to pending reconnect jobs/timers and cancel them on
+   pause, stop, release and source change.
+3. Before reconnecting, verify that the player is not released and the user
+   has not intentionally paused/stopped playback.
+4. Serialize VLC player operations on a controlled thread/handler.
+5. Dispatch UI state changes to the main thread.
+6. Prevent duplicate reconnect loops and stale events from old media items.
+7. Test phone calls, notifications, Bluetooth disconnect, headphone unplug,
+   background/foreground transitions and screen lock.
+
+Acceptance tests:
+- Pausing never causes playback to restart by itself.
+- Only one reconnect attempt runs at a time.
+- Audio focus is abandoned correctly.
+- Playback remains stable through interruptions and lifecycle changes.
+
+PRIORITY 4 — NETWORK PROTOCOL CLASSIFICATION
+Files: Playback.kt and related media classification code
+
+Problem:
+- MMS is treated as a network protocol in one place but is not classified
+  consistently in media handling.
+
+Developer tasks:
+1. Create one shared parser/list for supported URI schemes.
+2. Use it everywhere network media is detected.
+3. Document supported schemes (HTTP, HTTPS, RTSP, MMS, if supported by the
+   VLC build).
+4. Reject unsupported or malformed URLs with a clear message.
+
+Acceptance tests:
+- Supported schemes are classified consistently.
+- Unsupported schemes fail safely and clearly.
+
+PRIORITY 5 — WEBVIEW SECURITY
+Files: MainActivity.kt and WebView/search-result handling
+
+Risk:
+- JavaScript is enabled for search-result pages. This needs a clear
+  requirement and strict navigation controls.
+
+Developer tasks:
+1. Enable JavaScript only for pages that genuinely require it.
+2. Validate allowed URL schemes and hosts before navigation.
+3. Block unsafe schemes and unexpected external navigation.
+4. Enable WebView Safe Browsing where supported.
+5. Avoid exposing JavaScript interfaces to untrusted pages.
+6. Handle SSL errors securely; never proceed through certificate errors.
+7. Test malicious, malformed and redirected URLs.
+
+Acceptance tests:
+- Untrusted pages cannot navigate to unsafe schemes.
+- No insecure SSL bypass exists.
+- Search results open only through the intended safe flow.
+
+PRIORITY 6 — PRIVATE MODE
+Files: AppPrefs.kt, MainActivity.kt and search suggestions
+
+Problem:
+- Private Mode may still display previously saved search suggestions.
+
+Developer tasks:
+1. Hide history-based suggestions while Private Mode is enabled.
+2. Do not save searches, playback history or related metadata in Private
+   Mode.
+3. Clear temporary private data when the private session ends, as designed.
+4. Test enabling/disabling Private Mode and app restarts.
+
+Acceptance tests:
+- Private Mode does not reveal old search history.
+- Private searches do not appear in normal history.
+
+PRIORITY 7 — PERMISSIONS
+File: MainActivity.kt and Android media access code
+
+Problem:
+- Permissions appear to be requested immediately on entering Home.
+
+Developer tasks:
+1. Request permissions only when the user starts a feature that needs them.
+2. Use the correct Android-version-specific media permissions.
+3. Explain why access is needed before requesting it.
+4. Handle denial and permanent denial without crashing.
+5. Test on Android 10, 12, 13, 14 and newer where available.
+
+Acceptance tests:
+- The app opens without requesting unrelated permissions.
+- Local media browsing requests only the required access.
+- Denying permission leaves the rest of the app usable.
+
+PRIORITY 8 — DOCUMENTATION AND FEATURE STATUS
+Files: README.md, CHANGELOG.md, GITHUB-STEPS.md
+
+Developer tasks:
+1. Make the app version consistent everywhere.
+2. Mark unfinished features as planned/not implemented.
+3. Do not advertise sign-in, headphone controls, playlists, IPTV, picture
+   viewing, translations or a theme store as working unless implemented
+   and tested.
+4. Document supported Android versions, build steps and known limitations.
+
+SUGGESTED TEAM ASSIGNMENTS
+Developer 1 — Build engineer:
+Gradle wrapper, clean build, CI, unit tests and lint.
+
+Developer 2 — Android playback engineer:
+Audio focus, VLC event handling, reconnect logic and protocol handling.
+
+Developer 3 — Backend engineer:
+Deploy search API, HTTPS, request validation, error handling and tests.
+
+Developer 4 — Security / QA engineer:
+WebView security, Private Mode, permissions, device testing and crash tests.
+
+RECOMMENDED FIX ORDER
+1. Make a clean APK build possible.
+2. Add CI and baseline tests.
+3. Fix playback lifecycle, audio focus and reconnect handling.
+4. Deploy and test the real search backend.
+5. Fix protocol classification.
+6. Harden WebView and Private Mode.
+7. Improve permission timing and documentation.
+8. Run regression tests on multiple Android versions and devices.
+
+OFFICIAL DEVELOPER REFERENCES
+Android audio focus:
+https://developer.android.com/media/optimize/audio-focus
+
+Android foreground services:
+https://developer.android.com/develop/background-work/services/foreground-services
+
+Android media permissions:
+https://developer.android.com/about/versions/13/behavior-changes-13
+https://developer.android.com/about/versions/14/changes/partial-photo-video-access
+
+Android WebView security:
+https://developer.android.com/privacy-and-security/risks/webview-unsafe-file-inclusion
+https://developer.android.com/develop/ui/views/layout/webapps/webview
+
+Android testing:
+https://developer.android.com/training/testing
+
+Gradle Wrapper:
+https://docs.gradle.org/current/userguide/gradle_wrapper.html
+
+VLC Android source:
+https://code.videolan.org/videolan/vlc-android
+
+NOTE FOR CONTRIBUTORS
+Before changing code, reproduce the issue and add a test where possible.
+Make small pull requests, explain the root cause, include test evidence, and
+avoid unrelated rewrites. A source review alone cannot guarantee that an APK
+will not crash; final verification requires clean builds and real-device
+testing.

@@ -1,50 +1,64 @@
 package com.hmedia.player.search
 
-import java.net.URI
 import java.net.URLEncoder
 
-// The result of checking the search server address from the build settings
+// Result of checking the search server address
 sealed class BaseUrlCheck {
     data class Ok(val base: String) : BaseUrlCheck()
     data class Invalid(val reason: String) : BaseUrlCheck()
 }
 
-// Rules for the search server address and the search request. No Android types, so they can be tested on a computer.
+// Checks the search server address before the app uses it, and builds request addresses.
+// Pure Java, so it can be unit tested on a computer. The messages are the ones the tests expect.
 object SearchUrl {
-    // The placeholder the project ships with until a real server is set
-    const val PLACEHOLDER_HOST = "search.example.com"
+    private const val PLACEHOLDER = "https://search.example.com"
     private const val MAX_LENGTH = 300
+    private val HOST_AND_PORT = Regex(
+        "^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*(:[0-9]{1,5})?$"
+    )
+    private val SCHEME_AND_REST = Regex("^([A-Za-z][A-Za-z0-9+.-]*)://(.*)$", RegexOption.DOT_MATCHES_ALL)
 
-    // Only an https address with a host name is accepted. Usernames, passwords, queries and fragments are refused,
-    // because they would be sent with every search and could hide the real destination.
+    // Checks the address in a fixed order: the first problem found is the one reported
     fun checkBase(raw: String?): BaseUrlCheck {
-        val value = raw?.trim().orEmpty()
-        if (value.isEmpty()) return BaseUrlCheck.Invalid("The search server address is empty.")
-        if (value.length > MAX_LENGTH) return BaseUrlCheck.Invalid("The search server address is too long.")
-        if (value.any { it.isWhitespace() }) return BaseUrlCheck.Invalid("The search server address contains spaces.")
-        val uri = try {
-            URI(value)
-        } catch (e: Exception) {
-            return BaseUrlCheck.Invalid("The search server address is not a valid web address.")
-        }
-        if (!uri.scheme.equals("https", ignoreCase = true)) {
+        val text = raw?.trim().orEmpty()
+        if (text.isEmpty()) return BaseUrlCheck.Invalid("The search server address is empty.")
+        if (text.length > MAX_LENGTH) return BaseUrlCheck.Invalid("The search server address is too long.")
+        if (text.any { it.isWhitespace() }) return BaseUrlCheck.Invalid("The search server address contains spaces.")
+
+        val parts = SCHEME_AND_REST.matchEntire(text)
+        if (parts == null || parts.groupValues[1].lowercase() != "https") {
             return BaseUrlCheck.Invalid("The search server address must start with https://")
         }
-        val host = uri.host
-        if (host.isNullOrEmpty()) return BaseUrlCheck.Invalid("The search server address has no host name.")
-        if (uri.rawUserInfo != null) {
+        val rest = parts.groupValues[2]
+
+        // The host part ends at the first slash, question mark or hash
+        val authorityEnd = rest.indexOfFirst { it == '/' || it == '?' || it == '#' }
+            .let { if (it < 0) rest.length else it }
+        val authority = rest.substring(0, authorityEnd)
+        val tail = rest.substring(authorityEnd)
+
+        if (authority.contains('@')) {
             return BaseUrlCheck.Invalid("The search server address must not contain a username or password.")
         }
-        if (uri.rawQuery != null || uri.rawFragment != null) {
+        if (authority.isEmpty()) return BaseUrlCheck.Invalid("The search server address has no host name.")
+        if (!HOST_AND_PORT.matches(authority)) {
+            return BaseUrlCheck.Invalid("The search server host name is not valid.")
+        }
+        if (tail.contains('?') || tail.contains('#')) {
             return BaseUrlCheck.Invalid("The search server address must not contain a query or fragment.")
         }
-        if (host.equals(PLACEHOLDER_HOST, ignoreCase = true)) {
-            return BaseUrlCheck.Invalid("Search server not set up yet.")
+        if (tail.isNotEmpty() && tail != "/") {
+            return BaseUrlCheck.Invalid("The search server address must be the server root, without a path.")
         }
-        return BaseUrlCheck.Ok(value.trimEnd('/'))
+
+        val base = "https://$authority"
+        if (base == PLACEHOLDER) return BaseUrlCheck.Invalid("Search server not set up yet.")
+        return BaseUrlCheck.Ok(base)
     }
 
-    // The query is encoded, so it cannot add parameters or change the path of the request
-    fun buildSearchUrl(base: String, query: String): String =
-        "$base/search?q=${URLEncoder.encode(query.trim(), "UTF-8")}"
+    // The request address for one search: the server root, then /search?q=... with the query encoded
+    fun buildSearchUrl(base: String, query: String): String {
+        val root = base.trim().trimEnd('/')
+        return "$root/search?q=${URLEncoder.encode(query.trim(), "UTF-8")}"
+    }
 }

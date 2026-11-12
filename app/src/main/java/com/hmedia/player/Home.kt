@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.dp
 import android.content.res.Configuration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.compose.foundation.background
+import androidx.compose.ui.res.painterResource
 
 // Internet search categories. The parameter is added to the search address.
 enum class WebCategory(val label: Int, val param: String) {
@@ -72,6 +74,8 @@ fun HomeDashboard(
     var hasAccess by remember { mutableStateOf(MediaSearch.hasAccess(ctx)) }
     var videos by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
     var music by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
+    // False until the first load finishes, so "No files" is not shown while the lists are still loading
+    var loaded by remember { mutableStateOf(false) }
     val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
         hasAccess = grants.values.any { it } || MediaSearch.hasAccess(ctx)
     }
@@ -88,6 +92,7 @@ fun HomeDashboard(
             videos = emptyList()
             music = emptyList()
         }
+        loaded = true
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
@@ -159,6 +164,13 @@ fun HomeDashboard(
                 items(listOf(Dest.VIDEO, Dest.MUSIC, Dest.IPTV, Dest.SETTINGS)) { target ->
                     AssistChip(
                         onClick = { onOpen(target) },
+                        leadingIcon = {
+                            Icon(
+                                painterResource(shortcutIcon(target)),
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
                         label = { Text(stringResource(shortcutLabel(target))) }
                     )
                 }
@@ -179,14 +191,14 @@ fun HomeDashboard(
             } else {
                 val recent = Playback.recent
                 if (recent.isNotEmpty()) {
-                    MediaRow(stringResource(R.string.home_recent), recent) { index ->
+                    MediaRow(stringResource(R.string.home_recent), recent, loaded = true) { index ->
                         if (Playback.playQueue(ctx, prefs, recent, index)) onPlayed()
                     }
                 }
-                MediaRow(stringResource(R.string.home_videos), videos) { index ->
+                MediaRow(stringResource(R.string.home_videos), videos, loaded) { index ->
                     if (Playback.playQueue(ctx, prefs, videos, index)) onPlayed()
                 }
-                MediaRow(stringResource(R.string.home_music), music) { index ->
+                MediaRow(stringResource(R.string.home_music), music, loaded) { index ->
                     if (Playback.playQueue(ctx, prefs, music, index)) onPlayed()
                 }
             }
@@ -202,13 +214,15 @@ private fun shortcutLabel(target: Dest): Int = when (target) {
 }
 
 @Composable
-private fun MediaRow(title: String, items: List<MediaItem>, onPlay: (Int) -> Unit) {
+private fun MediaRow(title: String, items: List<MediaItem>, loaded: Boolean, onPlay: (Int) -> Unit) {
     Text(
         title,
         style = MaterialTheme.typography.titleMedium,
         modifier = Modifier.padding(top = 20.dp, bottom = 8.dp)
     )
-    if (items.isEmpty()) {
+    if (!loaded) {
+        Text(stringResource(R.string.lib_loading), style = MaterialTheme.typography.bodySmall)
+    } else if (items.isEmpty()) {
         Text(stringResource(R.string.lib_empty), style = MaterialTheme.typography.bodySmall)
     } else {
         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -224,7 +238,12 @@ private fun MediaRow(title: String, items: List<MediaItem>, onPlay: (Int) -> Uni
 private fun MediaCard(item: MediaItem, onClick: () -> Unit) {
     Card(onClick = onClick, modifier = Modifier.width(160.dp).height(110.dp)) {
         Box(Modifier.fillMaxSize()) {
-            BannerBackground(Modifier.fillMaxSize())
+            ThumbOrBanner(item.uri, Modifier.fillMaxSize())
+            Box(
+                Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(listOf(Color(0x00000000), Color(0xCC000000)))
+                )
+            )
             Column(Modifier.align(Alignment.BottomStart).padding(10.dp)) {
                 Text(
                     item.title,
@@ -240,4 +259,11 @@ private fun MediaCard(item: MediaItem, onClick: () -> Unit) {
             }
         }
     }
+}
+
+private fun shortcutIcon(target: Dest): Int = when (target) {
+    Dest.VIDEO -> R.drawable.ic_video
+    Dest.MUSIC -> R.drawable.ic_music
+    Dest.IPTV -> R.drawable.ic_network
+    else -> R.drawable.ic_settings
 }
