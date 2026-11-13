@@ -42,6 +42,15 @@ import com.hmedia.voidengine.togglePlayPause
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import kotlinx.coroutines.delay
 
 private val SPEEDS = listOf(1f, 1.25f, 1.5f, 2f)
 
@@ -81,6 +90,19 @@ fun PlayerScreen(engine: VoidEngine, onBack: () -> Unit) {
     val isAudioNow by rememberUpdatedState(isAudio)
     var artwork by remember { mutableStateOf<ImageBitmap?>(null) }
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    // Landscape hides the status and navigation bars so the picture uses the whole screen. They return in portrait and when leaving.
+    DisposableEffect(landscape) {
+        val window = activity?.window
+        if (window != null) {
+            val controller = WindowCompat.getInsetsController(window, window.decorView)
+            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            if (landscape) controller.hide(WindowInsetsCompat.Type.systemBars()) else controller.show(WindowInsetsCompat.Type.systemBars())
+        }
+        onDispose {
+            window?.let { WindowCompat.getInsetsController(it, it.decorView).show(WindowInsetsCompat.Type.systemBars()) }
+        }
+    }
 
     BackHandler { onBack() }
 
@@ -141,15 +163,7 @@ fun PlayerScreen(engine: VoidEngine, onBack: () -> Unit) {
         // The background is always dark, so the text on it is always light
         CompositionLocalProvider(LocalContentColor provides Color.White) {
             if (landscape) {
-                Row(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-                    MediaSurface(engine, isAudio, artwork, Modifier.weight(1.4f).fillMaxHeight())
-                    Spacer(Modifier.width(16.dp))
-                    Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState())) {
-                        PlayerHeader(onBack)
-                        PlayerTransport(engine, snap.playWhenReady, snap.positionMs, snap.durationMs)
-                        Spacer(Modifier.height(12.dp))
-                    }
-                }
+                LandscapePlayer(engine, isAudio, artwork, snap.playWhenReady, snap.positionMs, snap.durationMs, onBack)
             } else {
                 Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
                     PlayerHeader(onBack)
@@ -162,10 +176,113 @@ fun PlayerScreen(engine: VoidEngine, onBack: () -> Unit) {
     }
 }
 
+// Landscape player: the picture fills the screen. Controls appear on tap and hide after a few seconds while playing.
+@Composable
+private fun LandscapePlayer(
+    engine: VoidEngine,
+    isAudio: Boolean,
+    artwork: ImageBitmap?,
+    playWhenReady: Boolean,
+    positionMs: Long,
+    durationMs: Long,
+    onBack: () -> Unit
+) {
+    var controlsVisible by remember { mutableStateOf(true) }
+    var wakeTick by remember { mutableStateOf(0) }
+    var dragValue by remember { mutableStateOf<Float?>(null) }
+
+    // Every tap and every control press restarts the timer that hides the controls
+    LaunchedEffect(wakeTick, playWhenReady) {
+        controlsVisible = true
+        if (playWhenReady) {
+            delay(3500)
+            controlsVisible = false
+        }
+    }
+
+    Box(
+        Modifier.fillMaxSize().background(Color.Black).clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null
+        ) {
+            if (controlsVisible) {
+                controlsVisible = false
+            } else {
+                wakeTick++
+            }
+        }
+    ) {
+        MediaSurface(engine, isAudio, artwork, Modifier.fillMaxSize())
+        AnimatedVisibility(visible = controlsVisible, enter = fadeIn(), exit = fadeOut()) {
+            Box(Modifier.fillMaxSize().background(Color(0x80000000))) {
+                Row(
+                    Modifier.align(Alignment.TopStart).fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onBack) {
+                        Icon(painterResource(R.drawable.ic_back), contentDescription = stringResource(R.string.back), tint = Color.White)
+                    }
+                    Text(Playback.title, maxLines = 1, color = Color.White, style = MaterialTheme.typography.titleMedium)
+                }
+                Row(
+                    Modifier.align(Alignment.Center),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(28.dp)
+                ) {
+                    IconButton(onClick = {
+                        Playback.previous()
+                        wakeTick++
+                    }) {
+                        Icon(painterResource(R.drawable.ic_previous), contentDescription = stringResource(R.string.player_previous), tint = Color.White, modifier = Modifier.size(36.dp))
+                    }
+                    IconButton(onClick = {
+                        engine.togglePlayPause()
+                        wakeTick++
+                    }) {
+                        Icon(
+                            painterResource(if (playWhenReady) R.drawable.ic_pause else R.drawable.ic_play),
+                            contentDescription = stringResource(if (playWhenReady) R.string.pause else R.string.play),
+                            tint = Color.White,
+                            modifier = Modifier.size(56.dp)
+                        )
+                    }
+                    IconButton(onClick = {
+                        Playback.next()
+                        wakeTick++
+                    }) {
+                        Icon(painterResource(R.drawable.ic_next), contentDescription = stringResource(R.string.player_next), tint = Color.White, modifier = Modifier.size(36.dp))
+                    }
+                }
+                if (durationMs > 0) {
+                    val shown = (dragValue ?: positionMs.coerceIn(0L, durationMs).toFloat()).coerceIn(0f, durationMs.toFloat())
+                    Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp)) {
+                        Slider(
+                            value = shown,
+                            onValueChange = {
+                                dragValue = it
+                                wakeTick++
+                            },
+                            onValueChangeFinished = {
+                                dragValue?.let { engine.seekTo(it.toLong()) }
+                                dragValue = null
+                            },
+                            valueRange = 0f..durationMs.toFloat()
+                        )
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(clock(shown.toLong()), color = Color.White, style = MaterialTheme.typography.bodySmall)
+                            Text(clock(durationMs), color = Color.White, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun PlayerHeader(onBack: () -> Unit) {
     Column(Modifier.fillMaxWidth()) {
-        TextButton(onClick = onBack) { Text(stringResource(R.string.back)) }
+        IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_back), contentDescription = stringResource(R.string.back)) }
         Text(
             Playback.title,
             style = MaterialTheme.typography.titleMedium,

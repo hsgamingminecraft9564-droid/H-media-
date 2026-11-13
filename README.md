@@ -1,4 +1,4 @@
-# H Media Player (version 0.3.0)
+# H Media Player (version 0.3.1)
 
 An Android media player for your own videos and music, with internet search in its own viewer,
 IPTV from a playlist you supply, and the VOID playback engine.
@@ -33,6 +33,11 @@ The app does not yet show EPG, lyrics or the vault.
 
 Versions: Android Gradle Plugin 8.9.1, Kotlin 2.2.10, Gradle 8.11.1, Compose BOM 2024.09.00,
 minimum Android 8.0 (API 26), target and compile SDK 36, AppCompat 1.7.0, libVLC 3.7.6, Media3 1.10.1.
+
+## Recent changes (0.3.1)
+- Landscape video fills the screen; controls appear on tap and hide while playing.
+- Web links with special characters open; the link rules are checked by `tools/WebPolicyCheck.java` (run `java tools/WebPolicyCheck.java`).
+- Back buttons show the arrow icon; the app icon is the new logo.
 
 ## Not yet verified
 - The version 0.3.0 build has not been compiled in the environment where it was written.

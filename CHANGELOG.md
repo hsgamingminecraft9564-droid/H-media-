@@ -1,5 +1,27 @@
 # H Media Player: changelog
 
+## 0.3.2
+### Added
+- Search screen: the search icon in the top corner of Home opens it. It holds the search box, the categories, and the search history. Each search can be removed, or the history cleared. Nothing is kept in Private Mode.
+- Music library: Songs, Artists and Albums tabs, a Shuffle play button, artist and album under each song, the playing song highlighted, and Back to list inside an artist or album.
+- Guest profile: name, age, gender and a picture, saved only on this phone. Opened from Settings and from the avatar in the Home banner.
+- The app logo in the Home banner.
+### Changed
+- The search box and recent-search chips are removed from Home; use the search icon instead.
+- The privacy text now says the profile stays on the phone.
+- Version 0.3.2 (versionCode 5).
+### Not yet done
+- Notification with previous, next, artwork and progress (needs changes in the engine's playback service).
+- Video list and player design to match the reference pictures 11 and 12.
+
+## 0.3.1
+### Changed
+- Landscape video: the picture fills the screen. Controls appear on tap and hide after a few seconds while playing. The status and navigation bars hide in landscape.
+- Internet search: web addresses with special characters (such as |, [, ], spaces, and accented letters) now open instead of being refused. Long addresses up to 8192 characters are allowed. Pages may open new pages by themselves.
+- Back buttons show the arrow icon instead of the word "Back".
+- App icon: the new H Media Player logo.
+- Version 0.3.1 (versionCode 4).
+
 ## 0.3.0
 ### Added
 - Home screen: banner header, internet search bar with All, Images, Videos and News options,

@@ -30,6 +30,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.foundation.background
 import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.Image
 
 // Internet search categories. The parameter is added to the search address.
 enum class WebCategory(val label: Int, val param: String) {
@@ -70,7 +71,6 @@ fun HomeDashboard(
     val ctx = LocalContext.current
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val resumeTick = rememberResumeTick()
-    var query by rememberSaveable { mutableStateOf("") }
     var hasAccess by remember { mutableStateOf(MediaSearch.hasAccess(ctx)) }
     var videos by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
     var music by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
@@ -98,7 +98,14 @@ fun HomeDashboard(
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         Box(Modifier.fillMaxWidth().height(if (landscape) 110.dp else 170.dp)) {
             BannerBackground(Modifier.fillMaxSize())
+            Row(Modifier.align(Alignment.TopEnd).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { onOpen(Dest.SEARCH) }) {
+                    Icon(painterResource(R.drawable.ic_search), contentDescription = stringResource(R.string.search_title), tint = Color.White)
+                }
+                ProfileAvatar(prefs, 40.dp) { onOpen(Dest.PROFILE) }
+            }
             Column(Modifier.align(Alignment.BottomStart).padding(20.dp)) {
+                Image(painterResource(R.drawable.hmp_logo), contentDescription = null, modifier = Modifier.size(56.dp))
                 Text(
                     stringResource(R.string.home_title),
                     style = MaterialTheme.typography.headlineMedium,
@@ -114,49 +121,6 @@ fun HomeDashboard(
         }
 
         Column(Modifier.fillMaxWidth().padding(16.dp)) {
-            Text(stringResource(R.string.home_internet_title), style = MaterialTheme.typography.titleMedium)
-            if (prefs.privateMode) {
-                Text(
-                    stringResource(R.string.private_note),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                placeholder = { Text(stringResource(R.string.home_search_hint)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { onSearchWeb(query.trim(), WebCategory.WEB) })
-            )
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(top = 8.dp)
-            ) {
-                items(WebCategory.entries) { category ->
-                    AssistChip(
-                        onClick = { onSearchWeb(query.trim(), category) },
-                        label = { Text(stringResource(category.label)) }
-                    )
-                }
-            }
-            // Private Mode keeps recent searches hidden
-            if (!prefs.privateMode && prefs.recent.isNotEmpty()) {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(top = 8.dp)
-                ) {
-                    items(prefs.recent) { term ->
-                        SuggestionChip(
-                            onClick = { onSearchWeb(term, WebCategory.WEB) },
-                            label = { Text(term, maxLines = 1) }
-                        )
-                    }
-                }
-            }
-
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.padding(top = 20.dp)

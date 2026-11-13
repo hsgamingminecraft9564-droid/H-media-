@@ -142,7 +142,7 @@ fun WebSearchScreen(url: String, privateMode: Boolean, webScripts: Boolean, onBa
     if (crashed) {
         BackHandler { onBack() }
         Column(Modifier.fillMaxSize().padding(16.dp)) {
-            TextButton(onClick = onBack) { Text(stringResource(R.string.back)) }
+            IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_back), contentDescription = stringResource(R.string.back)) }
             Text(stringResource(R.string.web_error_crashed), style = MaterialTheme.typography.bodyMedium)
             Button(
                 onClick = {
@@ -217,7 +217,7 @@ private fun WebPage(
     }
 
     Column(Modifier.fillMaxSize()) {
-        TextButton(onClick = onBack) { Text(stringResource(R.string.back)) }
+        IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_back), contentDescription = stringResource(R.string.back)) }
         if (loading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         if (failed) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -238,7 +238,7 @@ private fun WebPage(
             factory = { ctx ->
                 WebView(ctx).apply {
                     settings.javaScriptEnabled = webScripts
-                    settings.setJavaScriptCanOpenWindowsAutomatically(false)
+                    settings.setJavaScriptCanOpenWindowsAutomatically(true)
                     settings.setGeolocationEnabled(false)
                     settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                     if (WebViewFeature.isFeatureSupported(WebViewFeature.SAFE_BROWSING_ENABLE)) {
@@ -313,12 +313,13 @@ private fun WebPage(
 }
 
 @Composable
-fun SettingsScreen(prefs: AppPrefs, onBack: () -> Unit) {
+fun SettingsScreen(prefs: AppPrefs, onProfile: () -> Unit = {}, onBack: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
-        TextButton(onClick = onBack) { Text(stringResource(R.string.back)) }
+        IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_back), contentDescription = stringResource(R.string.back)) }
         Text(stringResource(R.string.settings), style = MaterialTheme.typography.headlineSmall)
 
         Section(stringResource(R.string.account)) {
+            OptionRow(stringResource(R.string.profile_open), false) { onProfile() }
             Text(stringResource(R.string.signed_in_as, stringResource(R.string.guest)))
         }
         Section(stringResource(R.string.theme)) {

@@ -95,6 +95,16 @@ object Playback {
         return loadCurrent()
     }
 
+    // Plays the list in random order with shuffle switched on
+    fun playQueueShuffled(context: Context, prefs: AppPrefs, items: List<MediaItem>): Boolean {
+        if (items.isEmpty()) {
+            status = "There is nothing to play."
+            return false
+        }
+        shuffle = true
+        return playQueue(context, prefs, items, items.indices.random())
+    }
+
     fun toggle() {
         engine?.togglePlayPause()
     }

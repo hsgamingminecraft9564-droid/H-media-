@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.res.painterResource
 
-enum class Dest { HOME, VIDEO, MUSIC, IPTV, WEB, SETTINGS, PLAYER }
+enum class Dest { HOME, VIDEO, MUSIC, IPTV, WEB, SETTINGS, PLAYER, SEARCH, PROFILE }
 
 private const val SEARCH_HOME = "https://duckduckgo.com/"
 private const val SEARCH_QUERY = "https://duckduckgo.com/?q="
@@ -62,7 +62,7 @@ fun AppShell(prefs: AppPrefs) {
 
     // Back from Video, Music, IPTV or Settings returns to Home instead of leaving the app.
     // The web page and the player handle Back themselves.
-    BackHandler(enabled = started && (dest == Dest.VIDEO || dest == Dest.MUSIC || dest == Dest.IPTV || dest == Dest.SETTINGS)) {
+    BackHandler(enabled = started && (dest == Dest.VIDEO || dest == Dest.MUSIC || dest == Dest.IPTV || dest == Dest.SETTINGS || dest == Dest.SEARCH || dest == Dest.PROFILE)) {
         dest = Dest.HOME
     }
 
@@ -108,7 +108,9 @@ fun AppShell(prefs: AppPrefs) {
                             Dest.WEB -> WebSearchScreen(webUrl, prefs.privateMode, prefs.webScripts) {
                                 dest = Dest.HOME
                             }
-                            Dest.SETTINGS -> SettingsScreen(prefs) { dest = Dest.HOME }
+                            Dest.SETTINGS -> SettingsScreen(prefs, onProfile = { dest = Dest.PROFILE }) { dest = Dest.HOME }
+                        Dest.SEARCH -> SearchHubScreen(prefs, onSearch = { q, c -> searchWeb(q, c) }) { dest = Dest.HOME }
+                        Dest.PROFILE -> ProfileScreen(prefs) { dest = Dest.SETTINGS }
                             Dest.PLAYER -> {
                                 val engine = Playback.engine
                                 if (engine != null) {

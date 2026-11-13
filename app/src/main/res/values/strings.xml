@@ -35,7 +35,7 @@ Private Mode stops saving recent searches and clears web cookies and cache when 
 
 The app asks for permission to read the video and audio on your phone so it can find them. It does not upload those files.
 
-This version has no ads and no accounts.</string>
+This version has no ads and no accounts. Your profile (name, age, gender and photo) is saved only on this phone and is never sent anywhere.</string>
     <string name="close">Close</string>
     <string name="open_settings">Open app settings</string>
     <string name="no_results">No results for \"%1$s\".</string>
@@ -100,4 +100,31 @@ This version has no ads and no accounts.</string>
     <string name="language_search_hint">Search languages</string>
     <string name="language_apply">Apply</string>
     <string name="language_restart_note">The app may need to restart to apply the language.</string>
+    <string name="search_title">Search</string>
+    <string name="search_history">History</string>
+    <string name="search_clear">Clear history</string>
+    <string name="search_history_empty">No searches yet.</string>
+    <string name="search_remove">Remove</string>
+    <string name="profile_open">Profile</string>
+    <string name="profile_title">Profile</string>
+    <string name="profile_name">Name</string>
+    <string name="profile_age">Age</string>
+    <string name="profile_gender">Gender</string>
+    <string name="profile_photo_choose">Choose photo</string>
+    <string name="profile_save">Save</string>
+    <string name="profile_saved">Profile saved.</string>
+    <string name="profile_age_invalid">Enter an age from 1 to 120.</string>
+    <string name="profile_privacy_note">Saved only on this phone. Nothing is sent anywhere.</string>
+    <string name="gender_male">Male</string>
+    <string name="gender_female">Female</string>
+    <string name="gender_other">Other</string>
+    <string name="gender_none">Prefer not to say</string>
+    <string name="lib_tab_songs">Songs</string>
+    <string name="lib_tab_artists">Artists</string>
+    <string name="lib_tab_albums">Albums</string>
+    <string name="lib_shuffle_play">Shuffle play</string>
+    <string name="lib_unknown_artist">Unknown artist</string>
+    <string name="lib_unknown_album">Unknown album</string>
+    <string name="lib_songs_count">%1$d songs</string>
+    <string name="lib_back_to_list">Back to list</string>
 </resources>

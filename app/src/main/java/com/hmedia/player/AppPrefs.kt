@@ -74,6 +74,38 @@ class AppPrefs(context: Context) {
         sp.edit().putString("recent", recentState.joinToString("\n")).apply()
     }
 
+    // Removes one search from the history
+    fun forgetRecent(term: String) {
+        recentState = recentState.filter { it != term }
+        sp.edit().putString("recent", recentState.joinToString("\n")).apply()
+    }
+
+    // Guest profile, saved only on this phone
+    private var profileNameState by mutableStateOf(sp.getString("profile_name", "") ?: "")
+    val profileName: String get() = profileNameState
+    private var profileAgeState by mutableStateOf(sp.getString("profile_age", "") ?: "")
+    val profileAge: String get() = profileAgeState
+    private var profileGenderState by mutableStateOf(sp.getString("profile_gender", "") ?: "")
+    val profileGender: String get() = profileGenderState
+    private var profilePhotoState by mutableStateOf(sp.getString("profile_photo", "") ?: "")
+    val profilePhoto: String get() = profilePhotoState
+
+    fun saveProfile(name: String, age: String, gender: String) {
+        profileNameState = name.trim().take(40)
+        profileAgeState = age.trim().take(3)
+        profileGenderState = gender
+        sp.edit()
+            .putString("profile_name", profileNameState)
+            .putString("profile_age", profileAgeState)
+            .putString("profile_gender", profileGenderState)
+            .apply()
+    }
+
+    fun setProfilePhoto(uri: String) {
+        profilePhotoState = uri
+        sp.edit().putString("profile_photo", uri).apply()
+    }
+
     fun clearRecent() {
         recentState = emptyList()
         sp.edit().remove("recent").apply()
