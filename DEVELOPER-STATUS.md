@@ -6,7 +6,7 @@ Legend: **Done** = in the code. **Partly** = in the code, with a known gap. **No
 | Area | Status | Notes |
 |---|---|---|
 | Home screen with search, banners, thumbnails, recent items | Done | Not verified on a phone |
-| Internet search (DuckDuckGo in the web viewer) | Done | Links with special characters open (0.3.1); links to other apps blocked; Private Mode clears web data |
+| Internet search (choice of engine in Settings) | Done | Links with special characters open (0.3.1); links to other apps blocked; Private Mode clears web data |
 | Recent searches hidden in Private Mode | Done | |
 | Video and Music libraries from the phone | Done | Needs media permission; thumbnails need Android 10+ |
 | Filter by name | Done | |

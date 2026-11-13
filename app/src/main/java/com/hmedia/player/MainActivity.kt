@@ -344,6 +344,13 @@ fun SettingsScreen(prefs: AppPrefs, onProfile: () -> Unit = {}, onBack: () -> Un
                 prefs.setBackgroundPath("")
             }
         }
+        Section(stringResource(R.string.search_engine_title)) {
+            SearchProviders.all.forEach { provider ->
+                OptionRow(provider.name, prefs.searchProvider == provider.key) {
+                    prefs.setSearchProvider(provider.key)
+                }
+            }
+        }
         Section(stringResource(R.string.language)) {
             OptionRow(stringResource(R.string.language_system_default), prefs.language == "system") {
                 prefs.setLanguage("system")

@@ -52,6 +52,7 @@ fun AppShell(prefs: AppPrefs) {
     var started by rememberSaveable { mutableStateOf(prefs.consented) }
     var dest by rememberSaveable { mutableStateOf(Dest.HOME) }
     var returnTo by rememberSaveable { mutableStateOf(Dest.HOME) }
+    var playerExpanded by rememberSaveable { mutableStateOf(false) }
     var webUrl by rememberSaveable { mutableStateOf(SEARCH_HOME) }
     var askedForNotifications by rememberSaveable { mutableStateOf(false) }
     val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -73,15 +74,18 @@ fun AppShell(prefs: AppPrefs) {
         dest = Dest.HOME
     }
 
+    // Back closes the full player first
+    BackHandler(enabled = started && playerExpanded) { playerExpanded = false }
+
     fun openPlayer(from: Dest) {
         returnTo = from
-        dest = Dest.PLAYER
+        playerExpanded = true
     }
 
     fun searchWeb(query: String, category: WebCategory) {
         val q = query.trim()
         if (q.isNotEmpty() && !prefs.privateMode) prefs.remember(q)
-        webUrl = if (q.isEmpty()) SEARCH_HOME else SEARCH_QUERY + Uri.encode(q) + category.param
+        webUrl = if (q.isEmpty()) SearchProviders.homeUrl(prefs.searchProvider) else SearchProviders.resultsUrl(prefs.searchProvider, category, q)
         dest = Dest.WEB
     }
 
@@ -131,13 +135,21 @@ fun AppShell(prefs: AppPrefs) {
                             }
                         }
                     }
-                    if (Playback.hasEngine && dest != Dest.PLAYER) {
-                        NowPlayingStrip { openPlayer(dest) }
-                    }
                     if (showNav && !useRail) {
                         BottomBar(current = dest) { dest = it }
                     }
                 }
+            }
+        }
+        if (started && Playback.hasEngine) {
+            Playback.engine?.let { engine ->
+                PlayerSheet(
+                    engine = engine,
+                    expanded = playerExpanded,
+                    onExpandedChange = { playerExpanded = it },
+                    barHeight = if (useRail) 0.dp else 88.dp,
+                    miniContent = { NowPlayingStrip { playerExpanded = true } }
+                )
             }
         }
     }

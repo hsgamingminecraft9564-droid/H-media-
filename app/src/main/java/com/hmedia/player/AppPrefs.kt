@@ -126,6 +126,15 @@ class AppPrefs(context: Context) {
         sp.edit().putString("background_path", path).apply()
     }
 
+    // The search engine chosen in Settings (Google by default)
+    private var searchProviderState by mutableStateOf(sp.getString("search_provider", "google") ?: "google")
+    val searchProvider: String get() = searchProviderState
+
+    fun setSearchProvider(key: String) {
+        searchProviderState = key
+        sp.edit().putString("search_provider", key).apply()
+    }
+
     fun clearRecent() {
         recentState = emptyList()
         sp.edit().remove("recent").apply()

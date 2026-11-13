@@ -135,4 +135,5 @@ This version has no ads and no accounts. Your profile (name, age, gender and pho
     <string name="background_choose">Choose from gallery</string>
     <string name="background_default">Default background</string>
     <string name="background_note">Pick a picture from your gallery. It is copied into the app and dimmed so the text stays easy to read.</string>
+    <string name="search_engine_title">Search engine</string>
 </resources>

@@ -1,5 +1,19 @@
 # H Media Player: changelog
 
+## 0.4.2
+### Added
+- Search engine choice in Settings: Google (default), Bing, DuckDuckGo, Brave Search and Ecosia. The chosen engine is used for All, Images, Videos and News.
+### Notes
+- The search addresses were written from each engine's public address pattern. If a page does not open, try another engine and tell me which one, so I can correct its address.
+### Not verified
+- Not compiled or tested on a phone yet.
+
+## 0.4.1
+### Added
+- Player that shrinks into a mini bar, like YouTube and Spotify. Drag the handle or the mini bar down to shrink it, drag up to open it, tap the mini bar to open it, and Back closes the full player. Playback keeps going in both states.
+### Not verified
+- Not compiled or tested on a phone yet. The drag distance and the snapping need a check on a phone.
+
 ## 0.4.0
 ### Added
 - Custom background: Settings, Background, Choose from gallery. The picture is copied into the app, scaled down and dimmed. Default background restores the original look. No storage permission is needed.

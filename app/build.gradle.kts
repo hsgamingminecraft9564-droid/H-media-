@@ -31,8 +31,8 @@ android {
         applicationId = "com.hmedia.player"
         minSdk = 26
         targetSdk = 36
-        versionCode = 13
-        versionName = "0.4.0"
+        versionCode = 15
+        versionName = "0.4.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "SEARCH_API_BASE", "\"$searchApiBase\"")
     }
