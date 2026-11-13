@@ -22,7 +22,7 @@ class VoidPlaybackService : MediaSessionService() {
             stopSelf()
             return
         }
-        session = MediaSession.Builder(this, VoidPlayer(engine, Looper.getMainLooper())).build()
+        session = MediaSession.Builder(this, VoidMediaSessionPlayer(VoidPlayer(engine, Looper.getMainLooper()))).build()
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session

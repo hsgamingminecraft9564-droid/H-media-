@@ -127,4 +127,8 @@ This version has no ads and no accounts. Your profile (name, age, gender and pho
     <string name="lib_unknown_album">Unknown album</string>
     <string name="lib_songs_count">%1$d songs</string>
     <string name="lib_back_to_list">Back to list</string>
+    <string name="search_channels">Search channels</string>
+    <string name="iptv_all">All</string>
+    <string name="iptv_favorites">Favourites</string>
+    <string name="iptv_no_favorites">No favourite channels yet. Tap the star on a channel to add it.</string>
 </resources>

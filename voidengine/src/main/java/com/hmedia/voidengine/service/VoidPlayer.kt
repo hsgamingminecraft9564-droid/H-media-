@@ -33,6 +33,10 @@ class VoidPlayer(
         scope.launch {
             engine.snapshot.collect { invalidateState() }
         }
+        // Track details and next/previous availability come from the app, so refresh when they change
+        scope.launch {
+            NowPlayingBridge.state.collect { invalidateState() }
+        }
     }
 
     override fun getState(): State {
@@ -56,11 +60,20 @@ class VoidPlayer(
 
         val source = s.source
         if (source != null) {
+            val now = NowPlayingBridge.state.value
+            val metadata = MediaMetadata.Builder()
+                .setTitle(now.title.takeIf { it.isNotEmpty() } ?: source.title)
+                .setArtist(now.artist.takeIf { it.isNotEmpty() })
+                .setAlbumTitle(now.album.takeIf { it.isNotEmpty() })
+                .apply {
+                    now.artwork?.let { setArtworkData(it, MediaMetadata.PICTURE_TYPE_FRONT_COVER) }
+                }
+                .build()
             val item = MediaItemData.Builder(source.uri)
                 .setMediaItem(
                     MediaItem.Builder()
                         .setMediaId(source.uri)
-                        .setMediaMetadata(MediaMetadata.Builder().setTitle(source.title).build())
+                        .setMediaMetadata(metadata)
                         .build()
                 )
                 .setDurationUs(if (seekable) s.durationMs * 1000L else C.TIME_UNSET)

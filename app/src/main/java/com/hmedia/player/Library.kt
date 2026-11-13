@@ -24,6 +24,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Color
 
 // A number that goes up each time the screen returns to the foreground. Screens use it to re-check
 // media access and reload their files, so permission granted in system settings, or a file added
@@ -69,7 +71,7 @@ fun LibraryScreen(prefs: AppPrefs, isVideo: Boolean, onPlayed: () -> Unit) {
 
     LaunchedEffect(hasAccess, isVideo, resumeTick) {
         allItems = if (hasAccess) {
-            withContext(Dispatchers.IO) { if (isVideo) MediaSearch.list(ctx, true) else MusicIndex.load(ctx) }
+            withContext(Dispatchers.IO) { if (isVideo) VideoIndex.load(ctx) else MusicIndex.load(ctx) }
         } else {
             emptyList()
         }
@@ -217,6 +219,16 @@ fun LibraryScreen(prefs: AppPrefs, isVideo: Boolean, onPlayed: () -> Unit) {
                         ) {
                             Box(Modifier.size(width = 96.dp, height = 54.dp).clip(RoundedCornerShape(8.dp))) {
                                 ThumbOrBanner(item.uri, Modifier.fillMaxSize())
+                                if (isVideo && item.durationMs > 0) {
+                                    Text(
+                                        durationLabel(item.durationMs),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.White,
+                                        modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp)
+                                            .background(Color(0xB3000000), RoundedCornerShape(4.dp))
+                                            .padding(horizontal = 4.dp)
+                                    )
+                                }
                             }
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {

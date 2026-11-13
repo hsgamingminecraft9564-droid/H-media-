@@ -106,6 +106,17 @@ class AppPrefs(context: Context) {
         sp.edit().putString("profile_photo", uri).apply()
     }
 
+    // Favourite IPTV channels, kept by their address
+    private var favoritesState by mutableStateOf(sp.getStringSet("iptv_favorites", emptySet()) ?: emptySet<String>())
+    val favorites: Set<String> get() = favoritesState
+
+    fun toggleFavorite(url: String) {
+        val next = favoritesState.toMutableSet()
+        if (!next.add(url)) next.remove(url)
+        favoritesState = next
+        sp.edit().putStringSet("iptv_favorites", next).apply()
+    }
+
     fun clearRecent() {
         recentState = emptyList()
         sp.edit().remove("recent").apply()

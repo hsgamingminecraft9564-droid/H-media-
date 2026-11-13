@@ -16,6 +16,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import android.graphics.Bitmap
+import com.hmedia.voidengine.service.NowPlayingBridge
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 
 private val AUDIO_EXT = setOf("mp3", "flac", "m4a", "aac", "ogg", "oga", "opus", "wav", "wma")
 
@@ -68,6 +73,7 @@ object Playback {
     // single finish is never handled twice (which would skip a track).
     private var endHandled = false
     private var scope: CoroutineScope? = null
+    private val artworkScope = MainScope()
     private var connector: PlaybackServiceConnector? = null
     private var appContext: Context? = null
     private var appPrefs: AppPrefs? = null
@@ -130,6 +136,38 @@ object Playback {
         shuffle = !shuffle
         if (queue.isEmpty()) return
         rebuildOrder(order.getOrNull(orderPos) ?: 0)
+        NowPlayingBridge.setAvailability(hasNext(), hasPrevious())
+    }
+
+    // Whether the notification's next and previous buttons have something to go to
+    fun hasNext(): Boolean = orderPos + 1 < order.size || repeat == RepeatMode.ALL
+
+    fun hasPrevious(): Boolean = orderPos > 0
+
+    // Gives the notification, lock screen and headset controls what is playing, and the next and
+    // previous actions. The album art is the track's thumbnail, sent as a JPEG.
+    private fun publishNowPlaying(item: MediaItem, context: Context) {
+        NowPlayingBridge.onNext = { next() }
+        NowPlayingBridge.onPrevious = { previous() }
+        NowPlayingBridge.update(
+            title = item.title,
+            artist = item.artist,
+            album = item.album,
+            hasNext = hasNext(),
+            hasPrevious = hasPrevious()
+        )
+        val uri = item.uri
+        artworkScope.launch {
+            val bitmap = withContext(Dispatchers.IO) { loadThumbnail(context, uri) }
+            val bytes = bitmap?.let { artworkJpeg(it) }
+            if (currentUri == uri) NowPlayingBridge.setArtwork(bytes)
+        }
+    }
+
+    private fun artworkJpeg(bitmap: Bitmap): ByteArray {
+        val out = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+        return out.toByteArray()
     }
 
     fun cycleRepeat() {
@@ -138,6 +176,7 @@ object Playback {
             RepeatMode.ALL -> RepeatMode.ONE
             RepeatMode.ONE -> RepeatMode.OFF
         }
+        NowPlayingBridge.setAvailability(hasNext(), hasPrevious())
     }
 
     // Next track. At the end of the queue it wraps only when Repeat all is on.
@@ -165,6 +204,7 @@ object Playback {
         queue = emptyList()
         order = emptyList()
         orderPos = 0
+        NowPlayingBridge.clear()
     }
 
     private fun rebuildOrder(startIndex: Int) {
@@ -224,6 +264,7 @@ object Playback {
         status = "Opening..."
         recent = (listOf(item) + recent.filter { it.uri != item.uri }).take(RECENT_MAX)
         e.open(PlaybackSource.fromUri(item.uri, title = item.title))
+        publishNowPlaying(item, context)
         if (connector == null) {
             connector = PlaybackServiceConnector(context).also { it.connect() }
         }

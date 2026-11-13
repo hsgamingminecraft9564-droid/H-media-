@@ -51,6 +51,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import kotlinx.coroutines.delay
+import android.view.WindowManager
 
 private val SPEEDS = listOf(1f, 1.25f, 1.5f, 2f)
 
@@ -102,6 +103,15 @@ fun PlayerScreen(engine: VoidEngine, onBack: () -> Unit) {
         onDispose {
             window?.let { WindowCompat.getInsetsController(it, it.decorView).show(WindowInsetsCompat.Type.systemBars()) }
         }
+    }
+
+    // Keep the screen on while a video or channel is playing, so it does not switch off during a film.
+    // Music may still play with the screen off.
+    val keepScreenOn = snap.playWhenReady && !isAudioNow
+    DisposableEffect(keepScreenOn) {
+        val window = activity?.window
+        if (keepScreenOn) window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose { window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
     }
 
     BackHandler { onBack() }
@@ -164,6 +174,22 @@ fun PlayerScreen(engine: VoidEngine, onBack: () -> Unit) {
         CompositionLocalProvider(LocalContentColor provides Color.White) {
             if (landscape) {
                 LandscapePlayer(engine, isAudio, artwork, snap.playWhenReady, snap.positionMs, snap.durationMs, onBack)
+            } else if (!isAudio) {
+                // Portrait video: the picture on top with its controls on it, the title and modes below
+                Column(Modifier.fillMaxSize()) {
+                    LandscapePlayer(
+                        engine, isAudio, artwork, snap.playWhenReady, snap.positionMs, snap.durationMs, onBack,
+                        Modifier.fillMaxWidth().height(260.dp)
+                    )
+                    Column(
+                        Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text(Playback.title, style = MaterialTheme.typography.titleMedium, maxLines = 2)
+                        Text(Playback.status, style = MaterialTheme.typography.bodySmall)
+                        PlayerModesAndSpeed()
+                    }
+                }
             } else {
                 Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
                     PlayerHeader(onBack)
@@ -185,7 +211,8 @@ private fun LandscapePlayer(
     playWhenReady: Boolean,
     positionMs: Long,
     durationMs: Long,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier.fillMaxSize()
 ) {
     var controlsVisible by remember { mutableStateOf(true) }
     var wakeTick by remember { mutableStateOf(0) }
@@ -201,7 +228,7 @@ private fun LandscapePlayer(
     }
 
     Box(
-        Modifier.fillMaxSize().background(Color.Black).clickable(
+        modifier.background(Color.Black).clickable(
             interactionSource = remember { MutableInteractionSource() },
             indication = null
         ) {
@@ -388,6 +415,14 @@ private fun PlayerTransport(engine: VoidEngine, playWhenReady: Boolean, position
             }
         }
 
+        PlayerModesAndSpeed()
+    }
+}
+
+// Shuffle, repeat and speed. Shown under the picture in portrait video, and at the bottom of the controls on audio.
+@Composable
+private fun PlayerModesAndSpeed() {
+    Column(Modifier.fillMaxWidth()) {
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly,

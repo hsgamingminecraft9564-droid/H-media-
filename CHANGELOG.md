@@ -1,5 +1,34 @@
 # H Media Player: changelog
 
+## 0.3.5
+### Added
+- IPTV: search box for channels, All and Favourites switch, a star to add or remove a favourite, and a generated thumbnail for each channel (a colour tile with the channel's initials).
+### Changed
+- The screen stays on while a video or channel is playing (music may still play with the screen off).
+- Profile picture: a square copy is kept inside the app, so it stays after a restart.
+- Home: the logo and name are small at the top left, the banner is shorter, and the Video, Music, IPTV and Settings chips are removed (use the bottom bar).
+### Not done yet
+- Background picture setting (built-in pictures and your own).
+- Music and video screens redrawn 1:1 from the reference pictures, and the modern look.
+- App icon: the old icon in the screenshot means the newest build is not installed. Uninstall, then install version 0.3.5.
+### Not verified
+- Not compiled or tested on a phone yet.
+
+## 0.3.4
+### Changed
+- Video player in portrait: the picture is at the top with its controls on it (play, previous, next, progress, back), and the title, status, shuffle, repeat and speed are below it.
+- Video list: each video shows its length on the thumbnail.
+### Not verified
+- Not compiled or tested on a phone yet.
+
+## 0.3.3
+### Added
+- Notification and lock screen: previous and next buttons, the track's title, artist and album, and its thumbnail as album art. Headset and Bluetooth next and previous work too.
+- Engine: NowPlayingBridge (what the notification shows and the next and previous actions), and VoidMediaSessionPlayer (adds next and previous to the media session).
+### Not verified
+- The notification has not been compiled or tested on a phone yet. Check the buttons, the artwork and the progress bar on Android 13 and newer.
+- Video list and player design to match reference pictures 11 and 12 is still to do.
+
 ## 0.3.2
 ### Added
 - Search screen: the search icon in the top corner of Home opens it. It holds the search box, the categories, and the search history. Each search can be removed, or the history cleared. Nothing is kept in Private Mode.

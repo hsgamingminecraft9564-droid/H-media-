@@ -1,4 +1,4 @@
-# H Media Player: developer status (version 0.3.1)
+# H Media Player: developer status (version 0.3.3)
 
 Legend: **Done** = in the code. **Partly** = in the code, with a known gap. **Not done** = not built.
 **Not verified** = in the code, but not yet tested on a phone or in CI.
@@ -23,7 +23,7 @@ Legend: **Done** = in the code. **Partly** = in the code, with a known gap. **No
 | Privacy policy text | Partly | Only English |
 | Icons and launcher icon | Done | Launcher icon is the H Media Player logo (0.3.1); not verified on a phone |
 | Search screen with history (top-corner search) | Not done | Planned for the next batch |
-| Notification with previous, next, artwork and progress | Not done | Needs changes in the engine's playback service |
+| Notification with previous, next, thumbnail and track details | Done (0.3.3) | Engine change; not compiled or tested on a phone yet |
 | Music list with Songs/Videos/Artists/Albums tabs | Not done | Planned for the next batch |
 | Guest profile (name, age, gender, photo) | Not done | Waiting for field details |
 | Unit tests | Done | Search URL, search parsing, web policy, M3U parser, engine tests |

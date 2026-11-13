@@ -96,7 +96,7 @@ fun HomeDashboard(
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        Box(Modifier.fillMaxWidth().height(if (landscape) 110.dp else 170.dp)) {
+        Box(Modifier.fillMaxWidth().height(if (landscape) 96.dp else 132.dp)) {
             BannerBackground(Modifier.fillMaxSize())
             Row(Modifier.align(Alignment.TopEnd).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { onOpen(Dest.SEARCH) }) {
@@ -104,42 +104,18 @@ fun HomeDashboard(
                 }
                 ProfileAvatar(prefs, 40.dp) { onOpen(Dest.PROFILE) }
             }
-            Column(Modifier.align(Alignment.BottomStart).padding(20.dp)) {
-                Image(painterResource(R.drawable.hmp_logo), contentDescription = null, modifier = Modifier.size(56.dp))
+             Row(Modifier.align(Alignment.TopStart).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Image(painterResource(R.drawable.hmp_logo), contentDescription = null, modifier = Modifier.size(36.dp))
+                Spacer(Modifier.width(10.dp))
                 Text(
                     stringResource(R.string.home_title),
-                    style = MaterialTheme.typography.headlineMedium,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
-                Text(
-                    stringResource(R.string.home_tagline),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFFFFCDD2)
-                )
-            }
-        }
+            }        }
 
         Column(Modifier.fillMaxWidth().padding(16.dp)) {
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(top = 20.dp)
-            ) {
-                items(listOf(Dest.VIDEO, Dest.MUSIC, Dest.IPTV, Dest.SETTINGS)) { target ->
-                    AssistChip(
-                        onClick = { onOpen(target) },
-                        leadingIcon = {
-                            Icon(
-                                painterResource(shortcutIcon(target)),
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        },
-                        label = { Text(stringResource(shortcutLabel(target))) }
-                    )
-                }
-            }
-
             if (!hasAccess) {
                 Card(Modifier.fillMaxWidth().padding(top = 20.dp)) {
                     Column(Modifier.padding(16.dp)) {

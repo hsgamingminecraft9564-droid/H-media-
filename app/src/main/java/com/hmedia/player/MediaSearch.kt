@@ -9,7 +9,7 @@ import android.os.Build
 import android.provider.MediaStore
 import androidx.core.content.ContextCompat
 
-data class MediaItem(val title: String, val uri: Uri, val isVideo: Boolean, val artist: String = "", val album: String = "")
+data class MediaItem(val title: String, val uri: Uri, val isVideo: Boolean, val artist: String = "", val album: String = "", val durationMs: Long = 0L)
 
 object MediaSearch {
     // The media permissions this Android version needs

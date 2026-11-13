@@ -8,6 +8,13 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -42,7 +49,9 @@ fun IptvScreen(prefs: AppPrefs, onPlayed: () -> Unit) {
     var loading by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
     var filter by rememberSaveable { mutableStateOf("") }
+    var favoritesOnly by rememberSaveable { mutableStateOf(false) }
     val channels = IptvState.channels
+    val favorites = prefs.favorites
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Text(stringResource(R.string.iptv_title), style = MaterialTheme.typography.titleLarge)
@@ -82,52 +91,94 @@ fun IptvScreen(prefs: AppPrefs, onPlayed: () -> Unit) {
         OutlinedTextField(
             value = filter,
             onValueChange = { filter = it },
-            placeholder = { Text(stringResource(R.string.lib_filter)) },
+            placeholder = { Text(stringResource(R.string.search_channels)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
 
-        val shown = channels.filter { it.name.contains(filter, ignoreCase = true) }
+        Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected = !favoritesOnly, onClick = { favoritesOnly = false }, label = { Text(stringResource(R.string.iptv_all)) })
+            FilterChip(selected = favoritesOnly, onClick = { favoritesOnly = true }, label = { Text(stringResource(R.string.iptv_favorites)) })
+        }
+
+        val shown = channels.filter {
+            it.name.contains(filter, ignoreCase = true) && (!favoritesOnly || it.url in favorites)
+        }
         if (shown.isEmpty()) {
             Text(
-                stringResource(R.string.iptv_empty),
+                stringResource(if (favoritesOnly && channels.isNotEmpty()) R.string.iptv_no_favorites else R.string.iptv_empty),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 16.dp)
             )
         } else {
             LazyColumn(Modifier.weight(1f)) {
                 itemsIndexed(shown) { index, channel ->
-                    Column(
-                        Modifier.fillMaxWidth()
-                            .clickable {
-                                message = ""
-                                // The shown channels form the queue, so Next and Previous change channel
-                                val queue = shown.map { MediaItem(it.name, Uri.parse(it.url), isVideo = true) }
-                                if (Playback.playQueue(ctx, prefs, queue, index)) {
-                                    onPlayed()
-                                } else {
-                                    message = Playback.status
-                                }
-                            }
-                            .padding(vertical = 10.dp)
+                    val isFavorite = channel.url in favorites
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            channel.name,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        if (channel.group.isNotEmpty()) {
+                        ChannelThumb(channel.name)
+                        Spacer(Modifier.width(12.dp))
+                        Column(
+                            Modifier.weight(1f)
+                                .clickable {
+                                    message = ""
+                                    // The shown channels form the queue, so Next and Previous change channel
+                                    val queue = shown.map { MediaItem(it.name, Uri.parse(it.url), isVideo = true) }
+                                    if (Playback.playQueue(ctx, prefs, queue, index)) {
+                                        onPlayed()
+                                    } else {
+                                        message = Playback.status
+                                    }
+                                }
+                                .padding(vertical = 4.dp)
+                        ) {
                             Text(
-                                channel.group,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                channel.name,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            if (channel.group.isNotEmpty()) {
+                                Text(
+                                    channel.group,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        IconButton(onClick = { prefs.toggleFavorite(channel.url) }) {
+                            Text(
+                                if (isFavorite) "\u2605" else "\u2606",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
                 }
             }
         }
+    }
+}
+
+// A thumbnail made on the phone for each channel: a colour tile with the channel's initials.
+// The colour is the same every time for the same name.
+@Composable
+private fun ChannelThumb(name: String) {
+    val seed = name.hashCode()
+    val r = 0.25f + ((seed ushr 16) and 0xFF) / 255f * 0.55f
+    val g = 0.20f + ((seed ushr 8) and 0xFF) / 255f * 0.45f
+    val b = 0.25f + (seed and 0xFF) / 255f * 0.55f
+    val top = Color(r, g, b)
+    val bottom = Color(r * 0.45f, g * 0.45f, b * 0.45f)
+    val initials = name.split(" ").filter { it.isNotBlank() }.take(2)
+        .joinToString("") { it.take(1) }.uppercase().ifEmpty { "?" }
+    Box(
+        Modifier.size(52.dp).clip(RoundedCornerShape(10.dp)).background(Brush.linearGradient(listOf(top, bottom))),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(initials, color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
     }
 }
 

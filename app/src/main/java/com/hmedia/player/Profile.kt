@@ -2,6 +2,7 @@ package com.hmedia.player
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -34,6 +35,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 
 private val GENDERS = listOf(
     "male" to R.string.gender_male,
@@ -50,7 +52,7 @@ fun ProfileAvatar(prefs: AppPrefs, size: Dp, onClick: (() -> Unit)? = null) {
         value = if (prefs.profilePhoto.isEmpty()) {
             null
         } else {
-            withContext(Dispatchers.IO) { runCatching { decodeProfilePhoto(ctx, Uri.parse(prefs.profilePhoto)) }.getOrNull() }
+            withContext(Dispatchers.IO) { runCatching { BitmapFactory.decodeFile(prefs.profilePhoto)?.asImageBitmap() }.getOrNull() }
         }
     }
     val base = Modifier.size(size).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer)
@@ -85,9 +87,7 @@ fun ProfileScreen(prefs: AppPrefs, onBack: () -> Unit) {
     var message by remember { mutableStateOf("") }
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
-            // Keep access to the picture after a restart; some pickers do not allow this, which is fine
-            runCatching { ctx.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
-            prefs.setProfilePhoto(uri.toString())
+            saveSquarePhoto(ctx, uri)?.let { prefs.setProfilePhoto(it) }
         }
     }
 
@@ -161,3 +161,22 @@ fun ProfileScreen(prefs: AppPrefs, onBack: () -> Unit) {
         )
     }
 }
+
+// Saves a square copy of the picked picture inside the app, so it stays after a restart.
+// The picture is centred and cropped to a square, up to 512 pixels.
+private fun saveSquarePhoto(ctx: Context, uri: Uri): String? = runCatching {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    ctx.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+    var sample = 1
+    while (bounds.outWidth / sample > 1024 || bounds.outHeight / sample > 1024) sample *= 2
+    val options = BitmapFactory.Options().apply { inSampleSize = sample }
+    val full = ctx.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+        ?: error("The picture could not be read.")
+    val side = minOf(full.width, full.height)
+    val square = Bitmap.createBitmap(full, (full.width - side) / 2, (full.height - side) / 2, side, side)
+    val size = minOf(side, 512)
+    val scaled = Bitmap.createScaledBitmap(square, size, size, true)
+    val file = File(ctx.filesDir, "profile.jpg")
+    file.outputStream().use { scaled.compress(Bitmap.CompressFormat.JPEG, 92, it) }
+    file.absolutePath
+}.getOrNull()
