@@ -23,11 +23,18 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.shape.CircleShape
 
 enum class Dest { HOME, VIDEO, MUSIC, IPTV, WEB, SETTINGS, PLAYER, SEARCH, PROFILE }
 
-private const val SEARCH_HOME = "https://duckduckgo.com/"
-private const val SEARCH_QUERY = "https://duckduckgo.com/?q="
+private const val SEARCH_HOME = "https://www.google.com/"
+private const val SEARCH_QUERY = "https://www.google.com/search?q="
 
 private val NAV_ENTRIES = listOf(
     Dest.HOME to R.string.nav_home,
@@ -85,6 +92,8 @@ fun AppShell(prefs: AppPrefs) {
         modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing),
         color = MaterialTheme.colorScheme.background
     ) {
+        AppBackground(prefs)
+        VideoBackdrop()
         if (!started) {
             WelcomeScreen(prefs) { started = true }
         } else {
@@ -102,8 +111,8 @@ fun AppShell(prefs: AppPrefs) {
                                 onSearchWeb = { q, c -> searchWeb(q, c) },
                                 onPlayed = { openPlayer(Dest.HOME) }
                             )
-                            Dest.VIDEO -> LibraryScreen(prefs, isVideo = true, onPlayed = { openPlayer(Dest.VIDEO) })
-                            Dest.MUSIC -> LibraryScreen(prefs, isVideo = false, onPlayed = { openPlayer(Dest.MUSIC) })
+                            Dest.VIDEO -> LibraryScreen(prefs, isVideo = true, onPlayed = { openPlayer(Dest.VIDEO) }, onSearch = { dest = Dest.SEARCH }, onProfile = { dest = Dest.PROFILE })
+                            Dest.MUSIC -> LibraryScreen(prefs, isVideo = false, onPlayed = { openPlayer(Dest.MUSIC) }, onSearch = { dest = Dest.SEARCH }, onProfile = { dest = Dest.PROFILE })
                             Dest.IPTV -> IptvScreen(prefs, onPlayed = { openPlayer(Dest.IPTV) })
                             Dest.WEB -> WebSearchScreen(webUrl, prefs.privateMode, prefs.webScripts) {
                                 dest = Dest.HOME
@@ -136,51 +145,140 @@ fun AppShell(prefs: AppPrefs) {
 
 @Composable
 private fun NowPlayingStrip(onOpen: () -> Unit) {
+    val accent = MaterialTheme.colorScheme.primary
+    if (Playback.kind == "video") {
+        // Video: film icon, title and status, a play or pause button and the three dots (as in the reference)
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+                .clip(RoundedCornerShape(22.dp)).background(Color(0xB3101015))
+                .clickable { onOpen() }
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF22222A)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(painterResource(R.drawable.ic_video), contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    Playback.title,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = Color.White
+                )
+                Text(
+                    stringResource(if (Playback.playing) R.string.now_playing else R.string.paused),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MutedText
+                )
+            }
+            IconButton(onClick = { Playback.toggle() }) {
+                Box(Modifier.size(40.dp).clip(CircleShape).background(Color(0xFF1A1A20)), contentAlignment = Alignment.Center) {
+                    Icon(
+                        painterResource(if (Playback.playing) R.drawable.ic_pause else R.drawable.ic_play),
+                        contentDescription = stringResource(if (Playback.playing) R.string.pause else R.string.play),
+                        tint = accent,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            Box(Modifier.size(width = 30.dp, height = 40.dp).clip(RoundedCornerShape(12.dp)).clickable { onOpen() }, contentAlignment = Alignment.Center) {
+                MoreDots()
+            }
+        }
+        return
+    }
+    // Music: the picture, title, status and the previous, play or pause and next buttons
     Row(
-        Modifier.fillMaxWidth().clickable { onOpen() }.padding(horizontal = 16.dp, vertical = 8.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(22.dp)).background(Color(0xFF17171B))
+            .clickable { onOpen() }
+            .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Box(Modifier.size(48.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF2A2A30))) {
+            val uri = Playback.currentUri
+            if (uri != null) ThumbOrBanner(uri, Modifier.fillMaxSize())
+        }
+        Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(Playback.title, maxLines = 1, style = MaterialTheme.typography.bodyMedium)
+            Text(Playback.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall, color = Color.White)
             Text(
                 stringResource(if (Playback.playing) R.string.now_playing else R.string.paused),
-                style = MaterialTheme.typography.bodySmall
+                style = MaterialTheme.typography.bodySmall,
+                color = MutedText
             )
         }
-        TextButton(onClick = { Playback.toggle() }) {
-            Text(stringResource(if (Playback.playing) R.string.pause else R.string.play))
+        IconButton(onClick = { Playback.previous() }) {
+            Icon(painterResource(R.drawable.ic_previous), contentDescription = stringResource(R.string.player_previous), tint = Color.White, modifier = Modifier.size(22.dp))
+        }
+        IconButton(onClick = { Playback.toggle() }) {
+            Icon(
+                painterResource(if (Playback.playing) R.drawable.ic_pause else R.drawable.ic_play),
+                contentDescription = stringResource(if (Playback.playing) R.string.pause else R.string.play),
+                tint = Color.White,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+        IconButton(onClick = { Playback.next() }) {
+            Icon(painterResource(R.drawable.ic_next), contentDescription = stringResource(R.string.player_next), tint = Color.White, modifier = Modifier.size(22.dp))
         }
     }
 }
 
+// Bottom bar as in the reference: a wide dark bar, thin dividers, the selected item with a red glow
 @Composable
 private fun BottomBar(current: Dest, onSelect: (Dest) -> Unit) {
-    NavigationBar {
-        NAV_ENTRIES.forEach { (d, label) ->
-            NavigationBarItem(
-                selected = current == d,
-                onClick = { onSelect(d) },
-                icon = { Icon(painterResource(navIcon(d)), contentDescription = null) },
-                label = { Text(stringResource(label)) }
-            )
-        }
-    }
-}
-
-// Side navigation. It scrolls, so every item stays reachable on a short landscape screen.
-@Composable
-private fun SideRail(current: Dest, onSelect: (Dest) -> Unit) {
-    Surface(color = MaterialTheme.colorScheme.surface) {
-        Column(
-            Modifier.fillMaxHeight().width(88.dp).verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            NAV_ENTRIES.forEach { (d, label) ->
-                NavigationRailItem(
-                    selected = current == d,
-                    onClick = { onSelect(d) },
-                    icon = { Icon(painterResource(navIcon(d)), contentDescription = null) },
-                    label = { Text(stringResource(label), maxLines = 1) }
+    val entries = listOf(
+        Dest.HOME to R.string.nav_home,
+        Dest.VIDEO to R.string.nav_video,
+        Dest.MUSIC to R.string.nav_music,
+        Dest.IPTV to R.string.nav_iptv,
+        Dest.SETTINGS to R.string.nav_settings
+    )
+    val accent = MaterialTheme.colorScheme.primary
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(32.dp))
+            .background(Color(0xE60D0D11))
+            .padding(vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        entries.forEachIndexed { index, (d, label) ->
+            val selected = current == d
+            if (index > 0) {
+                Box(Modifier.width(1.dp).height(34.dp).background(Color(0x22FFFFFF)))
+            }
+            Column(
+                Modifier.weight(1f)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(
+                        Brush.verticalGradient(
+                            if (selected) listOf(accent.copy(alpha = 0.30f), Color.Transparent)
+                            else listOf(Color.Transparent, Color.Transparent)
+                        )
+                    )
+                    .clickable { onSelect(d) }
+                    .padding(vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    painterResource(navIcon(d)),
+                    contentDescription = null,
+                    tint = if (selected) accent else Color(0xFFE6E6EA),
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    stringResource(label),
+                    maxLines = 1,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (selected) accent else Color(0xFFE6E6EA)
                 )
             }
         }

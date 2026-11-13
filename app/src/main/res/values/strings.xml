@@ -131,4 +131,8 @@ This version has no ads and no accounts. Your profile (name, age, gender and pho
     <string name="iptv_all">All</string>
     <string name="iptv_favorites">Favourites</string>
     <string name="iptv_no_favorites">No favourite channels yet. Tap the star on a channel to add it.</string>
+    <string name="background_title">Background</string>
+    <string name="background_choose">Choose from gallery</string>
+    <string name="background_default">Default background</string>
+    <string name="background_note">Pick a picture from your gallery. It is copied into the app and dimmed so the text stays easy to read.</string>
 </resources>

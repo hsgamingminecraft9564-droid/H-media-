@@ -1,0 +1,12 @@
+Remove these files from your repository before you build 0.3.6.
+Copying a new zip over the repository does not delete old files, so these must be removed with git.
+
+app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+  The old glass adaptive icon. Android 8 and newer use it before the new logo PNG, which is why the
+  old H icon still shows on the home screen.
+app/src/main/res/values/ic_launcher_background.xml
+app/src/main/res/drawable/ic_launcher_foreground.xml
+  Only used by the old adaptive icon.
+
+Termux command (run in ~/H-media-):
+git rm --ignore-unmatch -q app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml app/src/main/res/values/ic_launcher_background.xml app/src/main/res/drawable/ic_launcher_foreground.xml

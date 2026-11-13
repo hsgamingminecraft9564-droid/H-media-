@@ -179,7 +179,8 @@ fun PlayerScreen(engine: VoidEngine, onBack: () -> Unit) {
                 Column(Modifier.fillMaxSize()) {
                     LandscapePlayer(
                         engine, isAudio, artwork, snap.playWhenReady, snap.positionMs, snap.durationMs, onBack,
-                        Modifier.fillMaxWidth().height(260.dp)
+                        Modifier.fillMaxWidth().height(260.dp),
+                        autoHide = false
                     )
                     Column(
                         Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())
@@ -212,7 +213,8 @@ private fun LandscapePlayer(
     positionMs: Long,
     durationMs: Long,
     onBack: () -> Unit,
-    modifier: Modifier = Modifier.fillMaxSize()
+    modifier: Modifier = Modifier.fillMaxSize(),
+    autoHide: Boolean = true
 ) {
     var controlsVisible by remember { mutableStateOf(true) }
     var wakeTick by remember { mutableStateOf(0) }
@@ -221,7 +223,7 @@ private fun LandscapePlayer(
     // Every tap and every control press restarts the timer that hides the controls
     LaunchedEffect(wakeTick, playWhenReady) {
         controlsVisible = true
-        if (playWhenReady) {
+        if (playWhenReady && autoHide) {
             delay(3500)
             controlsVisible = false
         }
@@ -349,15 +351,9 @@ private fun MediaSurface(engine: VoidEngine, isAudio: Boolean, artwork: ImageBit
     } else {
         // The picture takes the shape of the video (widescreen, portrait, square), so the whole
         // frame shows with black bars where needed, as in other video players.
-        val snap by engine.snapshot.collectAsState()
-        val ratio = if (snap.videoWidth > 0 && snap.videoHeight > 0) {
-            snap.videoWidth.toFloat() / snap.videoHeight.toFloat()
-        } else {
-            16f / 9f
-        }
-        Box(modifier.background(Color.Black), contentAlignment = Alignment.Center) {
+        Box(modifier.background(Color.Black)) {
             AndroidView(
-                modifier = Modifier.aspectRatio(ratio),
+                modifier = Modifier.fillMaxSize(),
                 factory = { c -> SurfaceView(c).also { engine.attachVideoView(it) } }
             )
         }

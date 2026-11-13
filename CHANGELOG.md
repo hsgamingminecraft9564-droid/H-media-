@@ -1,5 +1,46 @@
 # H Media Player: changelog
 
+## 0.4.0
+### Added
+- Custom background: Settings, Background, Choose from gallery. The picture is copied into the app, scaled down and dimmed. Default background restores the original look. No storage permission is needed.
+### Not verified
+- Not compiled or tested on a phone yet.
+
+## 0.3.9
+### Changed
+- Internet search opens Google results in the app's own web viewer. Images, Videos and News use Google's own tabs.
+### Notes
+- Google may show a verification screen to embedded browsers. If that happens, showing results inside the app needs a Google search API key (decision pending).
+### Not verified
+- Not compiled or tested on a phone yet.
+
+## 0.3.8
+### Changed
+- While a video plays, its frame is shown blurred behind the app.
+- Video mini bar: film icon, title, status, a play or pause button and the three dots (opens the player).
+- Bottom bar: wider and darker, thin dividers, the selected item with a red glow.
+### Not verified
+- Not compiled or tested on a phone yet.
+
+## 0.3.7
+### Changed
+- Music and Video screens redrawn in the reference style: top bar with logo and name, search and profile, screen title with red bar, pill tabs, red shuffle button, rounded filter, rows with the three dots, length and file size.
+- Bottom bar: floating rounded bar, selected item in red.
+- Mini player: rounded bar with picture, title, previous, play or pause and next.
+### Not done yet
+- Settings and IPTV screens are not yet redrawn to the reference.
+- Exact pixel match is not guaranteed: the font is the app's own font, and the layout is matched by eye.
+### Not verified
+- Not compiled or tested on a phone yet.
+
+## 0.3.6
+### Fixed
+- Portrait video: the picture fills its area and is fitted inside it, so it is no longer squeezed into a narrow column.
+- Portrait video: the controls (back, title, previous, play, next, progress) stay visible instead of hiding after a few seconds. Landscape still hides them while playing.
+- App icon: FILES-TO-DELETE.txt lists the old icon files that must be removed from the repository with git, so the new logo shows.
+### Not verified
+- Not compiled or tested on a phone yet.
+
 ## 0.3.5
 ### Added
 - IPTV: search box for channels, All and Favourites switch, a star to add or remove a favourite, and a generated thumbnail for each channel (a colour tile with the channel's initials).

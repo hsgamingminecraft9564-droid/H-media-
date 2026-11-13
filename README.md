@@ -13,7 +13,7 @@ IPTV from a playlist you supply, and the VOID playback engine.
   black bars where needed. Previous, play/pause, next, shuffle, repeat (off, all, one), speed
   (1x, 1.25x, 1.5x, 2x), and seek. Music shows album art on a blurred background where the phone has it.
 - **IPTV:** you type the address of an M3U playlist you are allowed to use. Nothing is bundled.
-- **Internet search:** DuckDuckGo pages inside the app. Links to other apps are blocked. Private
+- **Internet search:** Google pages inside the app. Links to other apps are blocked. Private
   Mode clears cookies, cache and web storage when you leave a page.
 - **Settings:** four themes, four fonts, a language list of 100 languages (translated into eight;
   the rest show English), and privacy options: scripts on web pages, Private Mode, clear recent searches.

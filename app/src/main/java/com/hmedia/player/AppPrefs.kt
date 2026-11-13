@@ -117,6 +117,15 @@ class AppPrefs(context: Context) {
         sp.edit().putStringSet("iptv_favorites", next).apply()
     }
 
+    // Picture chosen from the gallery for the background; empty means the default background
+    private var backgroundPathState by mutableStateOf(sp.getString("background_path", "") ?: "")
+    val backgroundPath: String get() = backgroundPathState
+
+    fun setBackgroundPath(path: String) {
+        backgroundPathState = path
+        sp.edit().putString("background_path", path).apply()
+    }
+
     fun clearRecent() {
         recentState = emptyList()
         sp.edit().remove("recent").apply()

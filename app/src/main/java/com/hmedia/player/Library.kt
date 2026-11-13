@@ -2,11 +2,13 @@ package com.hmedia.player
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,6 +16,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
@@ -24,8 +27,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import androidx.compose.foundation.background
-import androidx.compose.ui.graphics.Color
 
 // A number that goes up each time the screen returns to the foreground. Screens use it to re-check
 // media access and reload their files, so permission granted in system settings, or a file added
@@ -44,14 +45,20 @@ internal fun rememberResumeTick(): Int {
     return tick
 }
 
-// Empty artist or album names come back from the phone as "<unknown>" or blank
+// Empty artist or album names come back as "<unknown>" or blank
 private fun artistName(item: MediaItem): String = item.artist.takeIf { it.isNotBlank() && it != "<unknown>" } ?: ""
 private fun albumName(item: MediaItem): String = item.album.takeIf { it.isNotBlank() && it != "<unknown>" } ?: ""
 
-// Video or music library built from the real files on the phone.
-// Music has Songs, Artists and Albums tabs. Tapping a file plays the list in order, so Next and Previous work.
+// Music and video library: header, title, tabs, shuffle, filter, then the list.
+// Tapping a file plays the filtered list in order, so Next and Previous work.
 @Composable
-fun LibraryScreen(prefs: AppPrefs, isVideo: Boolean, onPlayed: () -> Unit) {
+fun LibraryScreen(
+    prefs: AppPrefs,
+    isVideo: Boolean,
+    onPlayed: () -> Unit,
+    onSearch: (() -> Unit)? = null,
+    onProfile: (() -> Unit)? = null
+) {
     val ctx = LocalContext.current
     val resumeTick = rememberResumeTick()
     var hasAccess by remember { mutableStateOf(MediaSearch.hasAccess(ctx)) }
@@ -88,169 +95,209 @@ fun LibraryScreen(prefs: AppPrefs, isVideo: Boolean, onPlayed: () -> Unit) {
     }
     val showingGroups = !isVideo && tab != 0 && groupKey == null
 
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text(
-            stringResource(if (isVideo) R.string.lib_title_video else R.string.lib_title_music),
-            style = MaterialTheme.typography.titleLarge
-        )
-        Spacer(Modifier.height(8.dp))
+    fun playAt(index: Int) {
+        message = ""
+        if (Playback.playQueue(ctx, prefs, shown, index)) onPlayed() else message = Playback.status
+    }
+
+    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+        AppHeader(prefs, onSearch, onProfile)
+        ScreenTitle(stringResource(if (isVideo) R.string.lib_title_video else R.string.lib_title_music))
+
         if (!hasAccess) {
-            Text(stringResource(R.string.lib_allow_help), style = MaterialTheme.typography.bodyMedium)
-            Button(
-                onClick = { permLauncher.launch(MediaSearch.requiredPermissions()) },
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-            ) {
-                Text(stringResource(R.string.lib_allow))
+            Text(stringResource(R.string.lib_allow_help), style = MaterialTheme.typography.bodyMedium, color = MutedText)
+            Spacer(Modifier.height(12.dp))
+            GradientButton(stringResource(R.string.lib_allow), null) {
+                permLauncher.launch(MediaSearch.requiredPermissions())
             }
         } else {
             if (!isVideo) {
-                TabRow(selectedTabIndex = tab) {
-                    listOf(R.string.lib_tab_songs, R.string.lib_tab_artists, R.string.lib_tab_albums).forEachIndexed { index, label ->
-                        Tab(
-                            selected = tab == index,
-                            onClick = {
-                                tab = index
-                                openGroup = null
-                            },
-                            text = { Text(stringResource(label)) }
-                        )
+                PillTabs(
+                    labels = listOf(R.string.lib_tab_songs, R.string.lib_tab_artists, R.string.lib_tab_albums),
+                    icons = listOf(R.drawable.ic_music, R.drawable.ic_artist, R.drawable.ic_album),
+                    selected = tab,
+                    onSelect = {
+                        tab = it
+                        openGroup = null
                     }
-                }
+                )
+                Spacer(Modifier.height(12.dp))
                 if (groupKey != null && tab != 0) {
                     TextButton(onClick = { openGroup = null }) {
-                        Icon(painterResource(R.drawable.ic_back), contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(painterResource(R.drawable.ic_back), contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text(stringResource(R.string.lib_back_to_list))
+                        Text(stringResource(R.string.lib_back_to_list), color = MaterialTheme.colorScheme.primary)
                     }
                 }
                 if (shown.isNotEmpty() && !showingGroups) {
-                    Button(
-                        onClick = {
-                            message = ""
-                            if (Playback.playQueueShuffled(ctx, prefs, shown)) onPlayed() else message = Playback.status
-                        },
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-                    ) {
-                        Icon(painterResource(R.drawable.ic_shuffle), contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.lib_shuffle_play))
+                    GradientButton(stringResource(R.string.lib_shuffle_play), R.drawable.ic_shuffle) {
+                        message = ""
+                        if (Playback.playQueueShuffled(ctx, prefs, shown)) onPlayed() else message = Playback.status
                     }
+                    Spacer(Modifier.height(12.dp))
                 }
             }
+
             OutlinedTextField(
                 value = filter,
                 onValueChange = { filter = it },
-                placeholder = { Text(stringResource(R.string.lib_filter)) },
+                placeholder = { Text(stringResource(R.string.lib_filter), color = MutedText) },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                leadingIcon = { Icon(painterResource(R.drawable.ic_search), contentDescription = null, tint = MutedText) },
+                shape = RoundedCornerShape(28.dp),
+                modifier = Modifier.fillMaxWidth()
             )
             if (message.isNotEmpty()) {
                 Text(message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
-            if (!loaded) {
-                Text(
+            Spacer(Modifier.height(4.dp))
+
+            when {
+                !loaded -> Text(
                     stringResource(R.string.lib_loading),
                     style = MaterialTheme.typography.bodyMedium,
+                    color = MutedText,
                     modifier = Modifier.padding(top = 16.dp)
                 )
-            } else if (showingGroups) {
-                val groups = matching
-                    .groupBy { if (tab == 1) artistName(it) else albumName(it) }
-                    .toList()
-                    .sortedBy { it.first.lowercase() }
-                if (groups.isEmpty()) {
-                    Text(stringResource(R.string.lib_empty), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 16.dp))
-                } else {
-                    LazyColumn(Modifier.weight(1f)) {
-                        items(groups) { group ->
-                            Row(
-                                Modifier.fillMaxWidth().clickable { openGroup = group.first }.padding(vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    painterResource(if (tab == 1) R.drawable.ic_artist else R.drawable.ic_album),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(28.dp)
-                                )
-                                Spacer(Modifier.width(12.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Text(
-                                        group.first.ifBlank {
-                                            stringResource(if (tab == 1) R.string.lib_unknown_artist else R.string.lib_unknown_album)
-                                        },
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        style = MaterialTheme.typography.bodyLarge
-                                    )
-                                    Text(
-                                        stringResource(R.string.lib_songs_count, group.second.size),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                showingGroups -> {
+                    val groups = matching
+                        .groupBy { if (tab == 1) artistName(it) else albumName(it) }
+                        .toList()
+                        .sortedBy { it.first.lowercase() }
+                    if (groups.isEmpty()) {
+                        Text(stringResource(R.string.lib_empty), style = MaterialTheme.typography.bodyMedium, color = MutedText, modifier = Modifier.padding(top = 16.dp))
+                    } else {
+                        LazyColumn(Modifier.weight(1f)) {
+                            items(groups) { group ->
+                                Row(
+                                    Modifier.fillMaxWidth().clickable { openGroup = group.first }.padding(vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        Modifier.size(60.dp).clip(CircleShape).background(Color(0xFF16161A)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            painterResource(if (tab == 1) R.drawable.ic_artist else R.drawable.ic_album),
+                                            contentDescription = null,
+                                            tint = MutedText,
+                                            modifier = Modifier.size(26.dp)
+                                        )
+                                    }
+                                    Spacer(Modifier.width(14.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        Text(
+                                            group.first.ifBlank {
+                                                stringResource(if (tab == 1) R.string.lib_unknown_artist else R.string.lib_unknown_album)
+                                            },
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = Color.White
+                                        )
+                                        Text(
+                                            stringResource(R.string.lib_songs_count, group.second.size),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MutedText
+                                        )
+                                    }
+                                    MoreDots()
                                 }
                             }
                         }
                     }
                 }
-            } else if (shown.isEmpty()) {
-                Text(
+                shown.isEmpty() -> Text(
                     stringResource(R.string.lib_empty),
                     style = MaterialTheme.typography.bodyMedium,
+                    color = MutedText,
                     modifier = Modifier.padding(top = 16.dp)
                 )
-            } else {
-                LazyColumn(Modifier.weight(1f)) {
+                else -> LazyColumn(Modifier.weight(1f)) {
                     itemsIndexed(shown) { index, item ->
-                        val playing = item.uri == Playback.currentUri
-                        val artistText = artistName(item).ifBlank { stringResource(R.string.lib_unknown_artist) }
-                        val albumText = albumName(item).ifBlank { stringResource(R.string.lib_unknown_album) }
-                        Row(
-                            Modifier.fillMaxWidth()
-                                .clickable {
-                                    message = ""
-                                    if (Playback.playQueue(ctx, prefs, shown, index)) {
-                                        onPlayed()
-                                    } else {
-                                        message = Playback.status
-                                    }
-                                }
-                                .padding(vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(Modifier.size(width = 96.dp, height = 54.dp).clip(RoundedCornerShape(8.dp))) {
-                                ThumbOrBanner(item.uri, Modifier.fillMaxSize())
-                                if (isVideo && item.durationMs > 0) {
-                                    Text(
-                                        durationLabel(item.durationMs),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = Color.White,
-                                        modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp)
-                                            .background(Color(0xB3000000), RoundedCornerShape(4.dp))
-                                            .padding(horizontal = 4.dp)
-                                    )
-                                }
-                            }
-                            Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    item.title,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = if (playing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    if (isVideo) stringResource(R.string.video) else "$artistText | $albumText",
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                        if (isVideo) {
+                            VideoRow(item) { playAt(index) }
+                        } else {
+                            SongRow(item) { playAt(index) }
                         }
                     }
                 }
             }
         }
+    }
+}
+
+// One song: square picture, title, artist, length and the three dots
+@Composable
+private fun SongRow(item: MediaItem, onClick: () -> Unit) {
+    val playing = item.uri == Playback.currentUri
+    val artist = artistName(item).ifBlank { stringResource(R.string.lib_unknown_artist) }
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.size(64.dp).clip(RoundedCornerShape(12.dp))) {
+            ThumbOrBanner(item.uri, Modifier.fillMaxSize())
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                item.title,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.titleMedium,
+                color = if (playing) MaterialTheme.colorScheme.primary else Color.White
+            )
+            Text(
+                artist,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodySmall,
+                color = MutedText
+            )
+        }
+        if (item.durationMs > 0) {
+            Text(durationLabel(item.durationMs), style = MaterialTheme.typography.bodySmall, color = MutedText)
+            Spacer(Modifier.width(8.dp))
+        }
+        MoreDots()
+    }
+}
+
+// One video: wide picture with the length on it, title, the word Video and the file size, the three dots
+@Composable
+private fun VideoRow(item: MediaItem, onClick: () -> Unit) {
+    val playing = item.uri == Playback.currentUri
+    val sizeText = sizeLabel(item.sizeBytes)
+    val subtitle = if (sizeText.isEmpty()) stringResource(R.string.video) else stringResource(R.string.video) + " • " + sizeText
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.width(128.dp).height(72.dp).clip(RoundedCornerShape(12.dp))) {
+            ThumbOrBanner(item.uri, Modifier.fillMaxSize())
+            if (item.durationMs > 0) {
+                Text(
+                    durationLabel(item.durationMs),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White,
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp)
+                        .background(Color(0xB3000000), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 5.dp, vertical = 1.dp)
+                )
+            }
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                item.title,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.titleSmall,
+                color = if (playing) MaterialTheme.colorScheme.primary else Color.White
+            )
+            Text(subtitle, maxLines = 1, style = MaterialTheme.typography.bodySmall, color = MutedText)
+        }
+        MoreDots()
     }
 }

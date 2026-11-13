@@ -4,7 +4,7 @@ import android.content.ContentUris
 import android.content.Context
 import android.provider.MediaStore
 
-// Music library with artist and album names. Kept apart from MediaSearch so the video query is unchanged.
+// Music library with artist, album and length. Kept apart from MediaSearch so the video query is unchanged.
 object MusicIndex {
     fun load(context: Context): List<MediaItem> {
         val collection = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
@@ -16,7 +16,8 @@ object MusicIndex {
                     MediaStore.Audio.Media.DISPLAY_NAME,
                     MediaStore.Audio.Media.TITLE,
                     MediaStore.Audio.Media.ARTIST,
-                    MediaStore.Audio.Media.ALBUM
+                    MediaStore.Audio.Media.ALBUM,
+                    MediaStore.Audio.Media.DURATION
                 ),
                 null,
                 null,
@@ -28,6 +29,7 @@ object MusicIndex {
                 val titleCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
                 val artistCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
                 val albumCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
+                val durationCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
                 val out = ArrayList<MediaItem>(c.count)
                 while (c.moveToNext()) {
                     val title = c.getString(titleCol)?.takeIf { it.isNotBlank() } ?: c.getString(nameCol) ?: ""
@@ -36,7 +38,8 @@ object MusicIndex {
                         uri = ContentUris.withAppendedId(collection, c.getLong(idCol)),
                         isVideo = false,
                         artist = c.getString(artistCol) ?: "",
-                        album = c.getString(albumCol) ?: ""
+                        album = c.getString(albumCol) ?: "",
+                        durationMs = c.getLong(durationCol)
                     )
                 }
                 out

@@ -49,6 +49,10 @@ import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewFeature
 import com.hmedia.player.web.WebPolicy
 import com.hmedia.player.i18n.AppLanguage
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
 
 // Holds the WebView without triggering Compose state writes while the view is being created
 private class WebHolder {
@@ -314,6 +318,10 @@ private fun WebPage(
 
 @Composable
 fun SettingsScreen(prefs: AppPrefs, onProfile: () -> Unit = {}, onBack: () -> Unit) {
+    val backgroundContext = LocalContext.current
+    val backgroundPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) saveBackground(backgroundContext, uri)?.let { prefs.setBackgroundPath(it) }
+    }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
         IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_back), contentDescription = stringResource(R.string.back)) }
         Text(stringResource(R.string.settings), style = MaterialTheme.typography.headlineSmall)
@@ -327,6 +335,14 @@ fun SettingsScreen(prefs: AppPrefs, onProfile: () -> Unit = {}, onBack: () -> Un
         }
         Section(stringResource(R.string.font)) {
             HFont.entries.forEach { f -> OptionRow(f.label, prefs.font == f) { prefs.setFont(f) } }
+        }
+        Section(stringResource(R.string.background_title)) {
+            OptionRow(stringResource(R.string.background_choose), prefs.backgroundPath.isNotEmpty()) {
+                backgroundPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            }
+            OptionRow(stringResource(R.string.background_default), prefs.backgroundPath.isEmpty()) {
+                prefs.setBackgroundPath("")
+            }
         }
         Section(stringResource(R.string.language)) {
             OptionRow(stringResource(R.string.language_system_default), prefs.language == "system") {

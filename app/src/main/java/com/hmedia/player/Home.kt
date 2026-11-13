@@ -35,9 +35,9 @@ import androidx.compose.foundation.Image
 // Internet search categories. The parameter is added to the search address.
 enum class WebCategory(val label: Int, val param: String) {
     WEB(R.string.web_all, ""),
-    IMAGES(R.string.web_images, "&iax=images&ia=images"),
-    VIDEOS(R.string.web_videos, "&iax=videos&ia=videos"),
-    NEWS(R.string.web_news, "&iar=news&ia=news")
+    IMAGES(R.string.web_images, "&tbm=isch"),
+    VIDEOS(R.string.web_videos, "&tbm=vid"),
+    NEWS(R.string.web_news, "&tbm=nws")
 }
 
 // A red-moon banner drawn in code, so it needs no image file.
