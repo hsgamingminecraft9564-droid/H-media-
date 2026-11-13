@@ -104,7 +104,7 @@ fun AppShell(prefs: AppPrefs) {
             val showNav = dest != Dest.PLAYER
             Row(Modifier.fillMaxSize()) {
                 if (showNav && useRail) {
-                    SideRail(current = dest) { dest = it }
+                    SideRail(current = dest) { selected -> dest = selected }
                 }
                 Column(Modifier.weight(1f).fillMaxHeight()) {
                     Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -238,6 +238,53 @@ private fun NowPlayingStrip(onOpen: () -> Unit) {
         }
         IconButton(onClick = { Playback.next() }) {
             Icon(painterResource(R.drawable.ic_next), contentDescription = stringResource(R.string.player_next), tint = Color.White, modifier = Modifier.size(22.dp))
+        }
+    }
+}
+
+// Side rail for landscape and wide screens: same look as the bottom bar, stacked vertically
+@Composable
+private fun SideRail(current: Dest, onSelect: (Dest) -> Unit) {
+    val accent = MaterialTheme.colorScheme.primary
+    Column(
+        Modifier.fillMaxHeight().width(88.dp).padding(horizontal = 8.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(32.dp))
+            .background(Color(0xE60D0D11))
+            .verticalScroll(rememberScrollState())
+            .padding(vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        NAV_ENTRIES.forEach { (d, label) ->
+            val selected = current == d
+            Column(
+                Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(
+                        Brush.verticalGradient(
+                            if (selected) listOf(accent.copy(alpha = 0.30f), Color.Transparent)
+                            else listOf(Color.Transparent, Color.Transparent)
+                        )
+                    )
+                    .clickable { onSelect(d) }
+                    .padding(vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    painterResource(navIcon(d)),
+                    contentDescription = null,
+                    tint = if (selected) accent else Color(0xFFE6E6EA),
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    stringResource(label),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (selected) accent else Color(0xFFE6E6EA)
+                )
+            }
         }
     }
 }
