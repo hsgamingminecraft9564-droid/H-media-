@@ -31,6 +31,7 @@ fun PlayerSheet(
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     barHeight: Dp,
+    onSearch: () -> Unit = {},
     miniContent: @Composable () -> Unit
 ) {
     val scope = rememberCoroutineScope()
@@ -76,7 +77,7 @@ fun PlayerSheet(
         ) {
             if (p > 0.001f) {
                 Box(Modifier.fillMaxSize().alpha(p)) {
-                    PlayerScreen(engine) { onExpandedChange(false) }
+                    PlayerScreen(engine, onSearch = onSearch) { onExpandedChange(false) }
                     // The handle at the top: drag it down to shrink the player
                     Box(
                         Modifier.align(Alignment.TopCenter).fillMaxWidth().height(24.dp).then(drag),

@@ -179,6 +179,23 @@ object Playback {
         NowPlayingBridge.setAvailability(hasNext(), hasPrevious())
     }
 
+    fun setRepeat(mode: RepeatMode) {
+        repeat = mode
+        NowPlayingBridge.setAvailability(hasNext(), hasPrevious())
+    }
+
+    // The queue in play order, and where the current track sits in it (for the Playlist sheet)
+    fun queueEntries(): List<MediaItem> = order.mapNotNull { queue.getOrNull(it) }
+
+    val queuePosition: Int get() = orderPos
+
+    // Jumps to an entry of the queue as listed by [queueEntries]
+    fun playAt(position: Int) {
+        if (position !in order.indices) return
+        orderPos = position
+        loadCurrent()
+    }
+
     // Next track. At the end of the queue it wraps only when Repeat all is on.
     fun next(): Boolean = advance(wrap = repeat == RepeatMode.ALL)
 

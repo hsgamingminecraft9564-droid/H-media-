@@ -66,6 +66,8 @@ fun LibraryScreen(
     var loaded by remember { mutableStateOf(false) }
     var filter by rememberSaveable { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
+    var actionsFor by remember { mutableStateOf<MediaItem?>(null) }
+    var reload by remember { mutableStateOf(0) }
     var tab by rememberSaveable { mutableStateOf(0) }            // music only: 0 songs, 1 artists, 2 albums
     var openGroup by rememberSaveable { mutableStateOf<String?>(null) }
     val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
@@ -76,7 +78,7 @@ fun LibraryScreen(
         hasAccess = MediaSearch.hasAccess(ctx)
     }
 
-    LaunchedEffect(hasAccess, isVideo, resumeTick) {
+    LaunchedEffect(hasAccess, isVideo, resumeTick, reload) {
         allItems = if (hasAccess) {
             withContext(Dispatchers.IO) { if (isVideo) VideoIndex.load(ctx) else MusicIndex.load(ctx) }
         } else {
@@ -216,20 +218,28 @@ fun LibraryScreen(
                 else -> LazyColumn(Modifier.weight(1f)) {
                     itemsIndexed(shown) { index, item ->
                         if (isVideo) {
-                            VideoRow(item) { playAt(index) }
+                            VideoRow(item, onMore = { actionsFor = item }) { playAt(index) }
                         } else {
-                            SongRow(item) { playAt(index) }
+                            SongRow(item, onMore = { actionsFor = item }) { playAt(index) }
                         }
                     }
                 }
             }
         }
     }
+
+    actionsFor?.let { item ->
+        FileActionsSheet(
+            target = FileTarget(item.uri, item.title, if (item.isVideo) "video/*" else "audio/*"),
+            onDismiss = { actionsFor = null },
+            onChanged = { reload++ }
+        )
+    }
 }
 
 // One song: square picture, title, artist, length and the three dots
 @Composable
-private fun SongRow(item: MediaItem, onClick: () -> Unit) {
+private fun SongRow(item: MediaItem, onMore: () -> Unit, onClick: () -> Unit) {
     val playing = item.uri == Playback.currentUri
     val artist = artistName(item).ifBlank { stringResource(R.string.lib_unknown_artist) }
     Row(
@@ -260,13 +270,16 @@ private fun SongRow(item: MediaItem, onClick: () -> Unit) {
             Text(durationLabel(item.durationMs), style = MaterialTheme.typography.bodySmall, color = MutedText)
             Spacer(Modifier.width(8.dp))
         }
-        MoreDots()
+        Box(
+            Modifier.size(width = 40.dp, height = 48.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onMore),
+            contentAlignment = Alignment.Center
+        ) { MoreDots() }
     }
 }
 
 // One video: wide picture with the length on it, title, the word Video and the file size, the three dots
 @Composable
-private fun VideoRow(item: MediaItem, onClick: () -> Unit) {
+private fun VideoRow(item: MediaItem, onMore: () -> Unit, onClick: () -> Unit) {
     val playing = item.uri == Playback.currentUri
     val sizeText = sizeLabel(item.sizeBytes)
     val subtitle = if (sizeText.isEmpty()) stringResource(R.string.video) else stringResource(R.string.video) + " • " + sizeText
@@ -298,6 +311,9 @@ private fun VideoRow(item: MediaItem, onClick: () -> Unit) {
             )
             Text(subtitle, maxLines = 1, style = MaterialTheme.typography.bodySmall, color = MutedText)
         }
-        MoreDots()
+        Box(
+            Modifier.size(width = 40.dp, height = 48.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onMore),
+            contentAlignment = Alignment.Center
+        ) { MoreDots() }
     }
 }

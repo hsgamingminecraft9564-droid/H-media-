@@ -8,6 +8,7 @@ import android.net.Uri
 import android.net.http.SslError
 import android.os.Bundle
 import android.os.Message
+import android.widget.Toast
 import android.webkit.CookieManager
 import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
@@ -137,7 +138,14 @@ fun WelcomeScreen(prefs: AppPrefs, onStart: () -> Unit) {
 // The web page. The page and its history are kept across rotation. If the page's rendering process
 // crashes, the page is replaced by a message with a Retry button instead of a dead view.
 @Composable
-fun WebSearchScreen(url: String, privateMode: Boolean, webScripts: Boolean, onBack: () -> Unit) {
+fun WebSearchScreen(
+    url: String,
+    privateMode: Boolean,
+    webScripts: Boolean,
+    onPageUrl: (String) -> Unit = {},
+    onDownloads: () -> Unit = {},
+    onBack: () -> Unit
+) {
     // Page history saved when the screen pauses, restored when it is created again after rotation
     val saved = rememberSaveable { Bundle() }
     var attempt by remember { mutableStateOf(0) }
@@ -160,7 +168,7 @@ fun WebSearchScreen(url: String, privateMode: Boolean, webScripts: Boolean, onBa
     } else {
         // A new key builds a fresh WebView
         key(attempt) {
-            WebPage(url, privateMode, webScripts, saved, onBack, onCrashed = { crashed = true })
+            WebPage(url, privateMode, webScripts, saved, onBack, onPageUrl, onDownloads, onCrashed = { crashed = true })
         }
     }
 }
@@ -173,6 +181,8 @@ private fun WebPage(
     webScripts: Boolean,
     saved: Bundle,
     onBack: () -> Unit,
+    onPageUrl: (String) -> Unit,
+    onDownloads: () -> Unit,
     onCrashed: () -> Unit
 ) {
     val holder = remember { WebHolder() }
@@ -221,7 +231,11 @@ private fun WebPage(
     }
 
     Column(Modifier.fillMaxSize()) {
-        IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_back), contentDescription = stringResource(R.string.back)) }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_back), contentDescription = stringResource(R.string.back)) }
+            Spacer(Modifier.weight(1f))
+            IconButton(onClick = onDownloads) { Icon(painterResource(R.drawable.ic_download), contentDescription = stringResource(R.string.downloads_title)) }
+        }
         if (loading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         if (failed) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -268,6 +282,11 @@ private fun WebPage(
                             failed = false
                         }
 
+                        // Remember the page, so it is open again the next time the app starts
+                        override fun onPageFinished(view: WebView, pageUrl: String?) {
+                            if (pageUrl != null && WebPolicy.isAllowedPage(pageUrl)) onPageUrl(pageUrl)
+                        }
+
                         override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                             if (request.isForMainFrame) failed = true
                         }
@@ -296,15 +315,21 @@ private fun WebPage(
                         override fun onGeolocationPermissionsShowPrompt(origin: String, callback: GeolocationPermissions.Callback) =
                             callback.invoke(origin, false, false)
                     }
-                    // A download link opens in the phone's own browser, which handles files safely
-                    setDownloadListener { downloadUrl, _, _, _, _ ->
-                        if (WebPolicy.isAllowedPage(downloadUrl)) {
+                    // A download link is saved to the Downloads folder by Android's download manager and
+                    // shows up in the Downloads screen. Older phones hand the link to the browser instead.
+                    setDownloadListener { downloadUrl, userAgent, contentDisposition, mimeType, _ ->
+                        val name = AppDownloads.enqueue(ctx, downloadUrl, userAgent, contentDisposition, mimeType)
+                        if (name != null) {
+                            Toast.makeText(ctx, ctx.getString(R.string.download_started, name), Toast.LENGTH_LONG).show()
+                        } else if (!AppDownloads.supported && WebPolicy.isAllowedPage(downloadUrl)) {
                             runCatching {
                                 ctx.startActivity(
                                     Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl))
                                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                 )
                             }
+                        } else {
+                            Toast.makeText(ctx, R.string.download_unsupported_link, Toast.LENGTH_LONG).show()
                         }
                     }
                     // After rotation the saved page and history come back; otherwise the search page loads
@@ -317,7 +342,7 @@ private fun WebPage(
 }
 
 @Composable
-fun SettingsScreen(prefs: AppPrefs, onProfile: () -> Unit = {}, onBack: () -> Unit) {
+fun SettingsScreen(prefs: AppPrefs, onProfile: () -> Unit = {}, onDownloads: () -> Unit = {}, onBack: () -> Unit) {
     val backgroundContext = LocalContext.current
     val backgroundPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) saveBackground(backgroundContext, uri)?.let { prefs.setBackgroundPath(it) }
@@ -329,6 +354,9 @@ fun SettingsScreen(prefs: AppPrefs, onProfile: () -> Unit = {}, onBack: () -> Un
         Section(stringResource(R.string.account)) {
             OptionRow(stringResource(R.string.profile_open), false) { onProfile() }
             Text(stringResource(R.string.signed_in_as, stringResource(R.string.guest)))
+        }
+        Section(stringResource(R.string.downloads_title)) {
+            OptionRow(stringResource(R.string.downloads_open), false) { onDownloads() }
         }
         Section(stringResource(R.string.theme)) {
             HTheme.entries.forEach { t -> OptionRow(t.label, prefs.theme == t) { prefs.setTheme(t) } }

@@ -31,7 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.shape.CircleShape
 
-enum class Dest { HOME, VIDEO, MUSIC, IPTV, WEB, SETTINGS, PLAYER, SEARCH, PROFILE }
+enum class Dest { HOME, VIDEO, MUSIC, IPTV, WEB, SETTINGS, PLAYER, SEARCH, PROFILE, DOWNLOADS }
 
 private const val SEARCH_HOME = "https://www.google.com/"
 private const val SEARCH_QUERY = "https://www.google.com/search?q="
@@ -50,10 +50,17 @@ private val NAV_ENTRIES = listOf(
 fun AppShell(prefs: AppPrefs) {
     val ctx = LocalContext.current
     var started by rememberSaveable { mutableStateOf(prefs.consented) }
-    var dest by rememberSaveable { mutableStateOf(Dest.HOME) }
+    // If the app was closed on a web page, that page opens again (never in Private Mode)
+    val reopenWeb = prefs.consented && prefs.wasOnWeb && prefs.lastWebUrl.isNotBlank() && !prefs.privateMode
+    var dest by rememberSaveable { mutableStateOf(if (reopenWeb) Dest.WEB else Dest.HOME) }
+    var downloadsFrom by rememberSaveable { mutableStateOf(Dest.SETTINGS) }
     var returnTo by rememberSaveable { mutableStateOf(Dest.HOME) }
     var playerExpanded by rememberSaveable { mutableStateOf(false) }
-    var webUrl by rememberSaveable { mutableStateOf(SEARCH_HOME) }
+    var webUrl by rememberSaveable { mutableStateOf(prefs.lastWebUrl.ifBlank { SEARCH_HOME }) }
+    // Remembers whether the web page was the open screen, for the next start. The Downloads and player screens do not change it.
+    LaunchedEffect(dest) {
+        if (dest != Dest.PLAYER && dest != Dest.DOWNLOADS) prefs.setWasOnWeb(dest == Dest.WEB)
+    }
     var askedForNotifications by rememberSaveable { mutableStateOf(false) }
     val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
@@ -118,16 +125,25 @@ fun AppShell(prefs: AppPrefs) {
                             Dest.VIDEO -> LibraryScreen(prefs, isVideo = true, onPlayed = { openPlayer(Dest.VIDEO) }, onSearch = { dest = Dest.SEARCH }, onProfile = { dest = Dest.PROFILE })
                             Dest.MUSIC -> LibraryScreen(prefs, isVideo = false, onPlayed = { openPlayer(Dest.MUSIC) }, onSearch = { dest = Dest.SEARCH }, onProfile = { dest = Dest.PROFILE })
                             Dest.IPTV -> IptvScreen(prefs, onPlayed = { openPlayer(Dest.IPTV) })
-                            Dest.WEB -> WebSearchScreen(webUrl, prefs.privateMode, prefs.webScripts) {
+                            Dest.WEB -> WebSearchScreen(
+                                webUrl, prefs.privateMode, prefs.webScripts,
+                                onPageUrl = { page -> webUrl = page; prefs.setLastWebUrl(page) },
+                                onDownloads = { downloadsFrom = Dest.WEB; dest = Dest.DOWNLOADS }
+                            ) {
                                 dest = Dest.HOME
                             }
-                            Dest.SETTINGS -> SettingsScreen(prefs, onProfile = { dest = Dest.PROFILE }) { dest = Dest.HOME }
+                            Dest.SETTINGS -> SettingsScreen(
+                                prefs,
+                                onProfile = { dest = Dest.PROFILE },
+                                onDownloads = { downloadsFrom = Dest.SETTINGS; dest = Dest.DOWNLOADS }
+                            ) { dest = Dest.HOME }
+                            Dest.DOWNLOADS -> DownloadsScreen(prefs, onPlayed = { openPlayer(Dest.DOWNLOADS) }) { dest = downloadsFrom }
                         Dest.SEARCH -> SearchHubScreen(prefs, onSearch = { q, c -> searchWeb(q, c) }) { dest = Dest.HOME }
                         Dest.PROFILE -> ProfileScreen(prefs) { dest = Dest.SETTINGS }
                             Dest.PLAYER -> {
                                 val engine = Playback.engine
                                 if (engine != null) {
-                                    PlayerScreen(engine) { dest = returnTo }
+                                    PlayerScreen(engine, onSearch = { dest = Dest.SEARCH }) { dest = returnTo }
                                 } else {
                                     // Playback was stopped, for example from the notification
                                     LaunchedEffect(Unit) { dest = returnTo }
@@ -148,6 +164,7 @@ fun AppShell(prefs: AppPrefs) {
                     expanded = playerExpanded,
                     onExpandedChange = { playerExpanded = it },
                     barHeight = if (useRail) 0.dp else 88.dp,
+                    onSearch = { playerExpanded = false; dest = Dest.SEARCH },
                     miniContent = { NowPlayingStrip { playerExpanded = true } }
                 )
             }

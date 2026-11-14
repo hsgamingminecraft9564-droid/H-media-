@@ -127,7 +127,9 @@ class AppPrefs(context: Context) {
     }
 
     // The search engine chosen in Settings (Google by default)
-    private var searchProviderState by mutableStateOf(sp.getString("search_provider", "google") ?: "google")
+    private var searchProviderState by mutableStateOf(
+        sp.getString("search_provider", null)?.takeIf { saved -> SearchProviders.all.any { it.key == saved } } ?: "google"
+    )
     val searchProvider: String get() = searchProviderState
 
     fun setSearchProvider(key: String) {
@@ -135,9 +137,30 @@ class AppPrefs(context: Context) {
         sp.edit().putString("search_provider", key).apply()
     }
 
+    // The web page that was open when the app was left, so it can come back next time.
+    // Never kept in Private Mode.
+    private var lastWebUrlState by mutableStateOf(sp.getString("last_web_url", "") ?: "")
+    val lastWebUrl: String get() = lastWebUrlState
+
+    fun setLastWebUrl(url: String) {
+        if (privateMode) return
+        lastWebUrlState = url
+        sp.edit().putString("last_web_url", url).apply()
+    }
+
+    private var wasOnWebState by mutableStateOf(sp.getBoolean("was_on_web", false))
+    val wasOnWeb: Boolean get() = wasOnWebState
+
+    fun setWasOnWeb(on: Boolean) {
+        if (wasOnWebState == on) return
+        wasOnWebState = on
+        sp.edit().putBoolean("was_on_web", on).apply()
+    }
+
     fun clearRecent() {
         recentState = emptyList()
-        sp.edit().remove("recent").apply()
+        lastWebUrlState = ""
+        sp.edit().remove("recent").remove("last_web_url").apply()
     }
 }
 

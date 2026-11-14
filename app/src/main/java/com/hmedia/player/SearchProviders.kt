@@ -31,13 +31,6 @@ object SearchProviders {
             news = "https://www.bing.com/news/search?q="
         ),
         SearchProvider(
-            key = "duckduckgo", name = "DuckDuckGo", home = "https://duckduckgo.com/",
-            web = "https://duckduckgo.com/?q=",
-            images = "https://duckduckgo.com/?iax=images&ia=images&q=",
-            videos = "https://duckduckgo.com/?iax=videos&ia=videos&q=",
-            news = "https://duckduckgo.com/?iar=news&ia=news&q="
-        ),
-        SearchProvider(
             key = "brave", name = "Brave Search", home = "https://search.brave.com/",
             web = "https://search.brave.com/search?q=",
             images = "https://search.brave.com/images?q=",
@@ -50,10 +43,52 @@ object SearchProviders {
             images = "https://www.ecosia.org/images?q=",
             videos = "https://www.ecosia.org/videos?q=",
             news = "https://www.ecosia.org/news?q="
+        ),
+        SearchProvider(
+            key = "yahoo", name = "Yahoo", home = "https://search.yahoo.com/",
+            web = "https://search.yahoo.com/search?p=",
+            images = "https://images.search.yahoo.com/search/images?p=",
+            videos = "https://video.search.yahoo.com/search/video?p=",
+            news = "https://news.search.yahoo.com/search?p="
+        ),
+        SearchProvider(
+            key = "startpage", name = "Startpage", home = "https://www.startpage.com/",
+            web = "https://www.startpage.com/do/search?query=",
+            images = "https://www.startpage.com/do/search?cat=pics&query=",
+            videos = "https://www.startpage.com/do/search?cat=video&query=",
+            news = "https://www.startpage.com/do/search?cat=news&query="
+        ),
+        SearchProvider(
+            key = "yandex", name = "Yandex", home = "https://yandex.com/",
+            web = "https://yandex.com/search/?text=",
+            images = "https://yandex.com/images/search?text=",
+            videos = "https://yandex.com/video/search?text=",
+            news = "https://yandex.com/news/search?text="
+        ),
+        SearchProvider(
+            key = "qwant", name = "Qwant", home = "https://www.qwant.com/",
+            web = "https://www.qwant.com/?q=",
+            images = "https://www.qwant.com/?t=images&q=",
+            videos = "https://www.qwant.com/?t=videos&q=",
+            news = "https://www.qwant.com/?t=news&q="
+        ),
+        SearchProvider(
+            key = "baidu", name = "Baidu", home = "https://www.baidu.com/",
+            web = "https://www.baidu.com/s?wd=",
+            images = "https://image.baidu.com/search/index?tn=baiduimage&word=",
+            videos = "https://www.baidu.com/sf/vsearch?pd=video&wd=",
+            news = "https://www.baidu.com/s?rtt=1&tn=news&word="
+        ),
+        SearchProvider(
+            key = "naver", name = "Naver", home = "https://www.naver.com/",
+            web = "https://search.naver.com/search.naver?query=",
+            images = "https://search.naver.com/search.naver?where=image&query=",
+            videos = "https://search.naver.com/search.naver?where=video&query=",
+            news = "https://search.naver.com/search.naver?where=news&query="
         )
     )
 
-    // Falls back to Google if the saved choice is unknown
+    // Google is first and the default; it is also used if the saved choice is unknown
     fun find(key: String): SearchProvider = all.firstOrNull { it.key == key } ?: all.first()
 
     fun homeUrl(key: String): String = find(key).home
