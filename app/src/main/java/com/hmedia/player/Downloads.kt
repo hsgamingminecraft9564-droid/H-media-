@@ -85,14 +85,14 @@ object AppDownloads {
                 val totalCol = c.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
                 val soFarCol = c.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
                 val modCol = c.getColumnIndexOrThrow(DownloadManager.COLUMN_LAST_MODIFIED_TIMESTAMP)
-                val providerCol = c.getColumnIndexOrThrow(DownloadManager.COLUMN_MEDIA_PROVIDER_URI)
+                val providerCol = c.getColumnIndex(DownloadManager.COLUMN_MEDIAPROVIDER_URI)
                 val typeCol = c.getColumnIndexOrThrow(DownloadManager.COLUMN_MEDIA_TYPE)
                 while (c.moveToNext()) {
                     val id = c.getLong(idCol)
                     val title = c.getString(titleCol) ?: ""
                     val status = c.getInt(statusCol)
                     if (status == DownloadManager.STATUS_SUCCESSFUL) {
-                        val uri = c.getString(providerCol)?.takeIf { it.isNotBlank() }?.let { Uri.parse(it) }
+                        val uri = (if (providerCol >= 0) c.getString(providerCol) else null)?.takeIf { it.isNotBlank() }?.let { Uri.parse(it) }
                             ?: dm.getUriForDownloadedFile(id)
                             ?: continue
                         val mime = c.getString(typeCol)?.takeIf { it.isNotBlank() } ?: "application/octet-stream"
