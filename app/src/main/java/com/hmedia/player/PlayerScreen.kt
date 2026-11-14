@@ -722,7 +722,7 @@ private fun PlayerSettingsSheet(onDismiss: () -> Unit) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 RepeatMode.values().forEach { mode ->
                     OptionChip(stringResource(repeatLabel(mode)), Playback.repeat == mode, Modifier.weight(1f)) {
-                        Playback.setRepeat(mode)
+                        Playback.applyRepeat(mode)
                     }
                 }
             }

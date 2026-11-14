@@ -179,7 +179,7 @@ object Playback {
         NowPlayingBridge.setAvailability(hasNext(), hasPrevious())
     }
 
-    fun setRepeat(mode: RepeatMode) {
+    fun applyRepeat(mode: RepeatMode) {
         repeat = mode
         NowPlayingBridge.setAvailability(hasNext(), hasPrevious())
     }
