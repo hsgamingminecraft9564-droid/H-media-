@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.res.Configuration
+import android.media.AudioManager
 import android.os.Build
 import android.util.Size
 import android.view.SurfaceView
@@ -38,6 +39,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.hmedia.voidengine.VoidEngine
+import com.hmedia.voidengine.service.PictureInPicture
+import kotlin.math.roundToInt
 import com.hmedia.voidengine.togglePlayPause
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -56,6 +59,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
@@ -72,10 +76,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 
-private val SPEEDS = listOf(1f, 1.25f, 1.5f, 2f)
+internal val SPEEDS = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 3f, 4f)
 
 // m:ss, or h:mm:ss for long files
-private fun clock(ms: Long): String {
+internal fun clock(ms: Long): String {
     val total = ms / 1000
     val h = total / 3600
     val m = (total % 3600) / 60
@@ -83,10 +87,32 @@ private fun clock(ms: Long): String {
     return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
 }
 
-private fun repeatLabel(mode: RepeatMode): Int = when (mode) {
+internal fun repeatLabel(mode: RepeatMode): Int = when (mode) {
     RepeatMode.OFF -> R.string.player_repeat_off
     RepeatMode.ALL -> R.string.player_repeat_all
     RepeatMode.ONE -> R.string.player_repeat_one
+}
+
+private fun brightnessOf(activity: Activity?): Float {
+    val level = activity?.window?.attributes?.screenBrightness ?: -1f
+    return if (level >= 0f) level else 0.5f
+}
+
+private fun setBrightnessOf(activity: Activity?, level: Float) {
+    val window = activity?.window ?: return
+    val params = window.attributes
+    params.screenBrightness = level.coerceIn(0.02f, 1f)
+    window.attributes = params
+}
+
+private fun volumeOf(audio: AudioManager): Float {
+    val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+    return audio.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / max.toFloat()
+}
+
+private fun setVolumeOf(audio: AudioManager, level: Float) {
+    val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+    audio.setStreamVolume(AudioManager.STREAM_MUSIC, (level * max).roundToInt().coerceIn(0, max), 0)
 }
 
 private tailrec fun Context.findActivity(): Activity? = when (this) {
@@ -176,6 +202,21 @@ fun PlayerScreen(engine: VoidEngine, onSearch: () -> Unit = {}, onBack: () -> Un
     var showQueue by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
 
+    // In the small Picture-in-Picture window only the picture is shown
+    if (PipState.inPip && !isAudio) {
+        MediaSurface(engine, isAudio, artwork, Modifier.fillMaxSize())
+        return
+    }
+
+    // Picture-in-Picture is offered for video on phones that support it
+    val pipAction: () -> Unit = {
+        if (activity != null) {
+            PictureInPicture.enter(activity, snap.videoWidth, snap.videoHeight)
+        }
+    }
+    val enterPip: (() -> Unit)? =
+        if (activity != null && !isAudio && PictureInPicture.isSupported(activity)) pipAction else null
+
     Box(Modifier.fillMaxSize()) {
         Crossfade(targetState = artwork, animationSpec = tween(350)) { bitmap ->
             if (bitmap != null) {
@@ -198,7 +239,7 @@ fun PlayerScreen(engine: VoidEngine, onSearch: () -> Unit = {}, onBack: () -> Un
             if (landscape) {
                 LandscapePlayer(
                     engine, isAudio, artwork, snap.playWhenReady, snap.positionMs, snap.durationMs, onBack,
-                    onQueue = { showQueue = true }, onSettings = { showSettings = true }
+                    onQueue = { showQueue = true }, onSettings = { showSettings = true }, onPip = enterPip
                 )
             } else {
                 PortraitPlayer(
@@ -208,11 +249,11 @@ fun PlayerScreen(engine: VoidEngine, onSearch: () -> Unit = {}, onBack: () -> Un
             }
         }
         if (showQueue) QueueSheet { showQueue = false }
-        if (showSettings) PlayerSettingsSheet { showSettings = false }
+        if (showSettings) PlayerToolsSheet(engine, snap, isAudio, enterPip) { showSettings = false }
     }
 }
 
-private fun speedLabel(s: Float): String = if (s == s.toInt().toFloat()) "${s.toInt()}x" else "${s}x"
+internal fun speedLabel(s: Float): String = if (s == s.toInt().toFloat()) "${s.toInt()}x" else "${s}x"
 
 private val PillFill = Color(0xCC101014)
 private val PillBorder = Color(0x26FFFFFF)
@@ -283,6 +324,8 @@ private fun PortraitPlayer(
 }
 
 // Landscape player: the picture fills the screen. Controls appear on tap and hide after a few seconds while playing.
+// Gestures: swipe up or down on the left side for brightness and on the right side for volume, swipe
+// sideways to seek, double-tap the left or right half to jump 10 seconds. The lock button turns them off.
 @Composable
 private fun LandscapePlayer(
     engine: VoidEngine,
@@ -293,10 +336,19 @@ private fun LandscapePlayer(
     durationMs: Long,
     onBack: () -> Unit,
     onQueue: () -> Unit,
-    onSettings: () -> Unit
+    onSettings: () -> Unit,
+    onPip: (() -> Unit)?
 ) {
+    val ctx = LocalContext.current
+    val activity = remember(ctx) { ctx.findActivity() }
+    val audio = remember(ctx) { ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     var controlsVisible by remember { mutableStateOf(true) }
     var wakeTick by remember { mutableStateOf(0) }
+    var locked by remember { mutableStateOf(false) }
+    var hud by remember { mutableStateOf("") }
+    var hudTick by remember { mutableStateOf(0) }
+    val positionNow by rememberUpdatedState(positionMs)
+    val durationNow by rememberUpdatedState(durationMs)
 
     // Every tap and every control press restarts the timer that hides the controls
     LaunchedEffect(wakeTick, playWhenReady) {
@@ -307,20 +359,96 @@ private fun LandscapePlayer(
         }
     }
 
-    Box(
-        Modifier.fillMaxSize().background(Color.Black).clickable(
-            interactionSource = remember { MutableInteractionSource() },
-            indication = null
-        ) {
-            if (controlsVisible) {
-                controlsVisible = false
-            } else {
-                wakeTick++
+    // The short message for a gesture (brightness, volume, seek) disappears by itself
+    LaunchedEffect(hudTick) {
+        if (hud.isNotEmpty()) {
+            delay(900)
+            hud = ""
+        }
+    }
+
+    // Leaving the screen gives the brightness back to the system setting
+    DisposableEffect(Unit) {
+        onDispose {
+            val window = activity?.window
+            if (window != null) {
+                val params = window.attributes
+                params.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+                window.attributes = params
             }
         }
+    }
+
+    Box(
+        Modifier.fillMaxSize().background(Color.Black)
+            .pointerInput(locked) {
+                detectTapGestures(
+                    onTap = {
+                        if (locked) {
+                            wakeTick++
+                        } else if (controlsVisible) {
+                            controlsVisible = false
+                        } else {
+                            wakeTick++
+                        }
+                    },
+                    onDoubleTap = { offset ->
+                        if (!locked) {
+                            val forward = offset.x > size.width / 2f
+                            val top = if (durationNow > 0L) durationNow else Long.MAX_VALUE
+                            val target = (positionNow + (if (forward) 10_000L else -10_000L)).coerceIn(0L, top)
+                            engine.seekTo(target)
+                            hud = if (forward) "+10 s" else "−10 s"
+                            hudTick++
+                        }
+                    }
+                )
+            }
+            .pointerInput(locked) {
+                if (!locked) {
+                    var leftSide = true
+                    var level = 0f
+                    detectVerticalDragGestures(
+                        onDragStart = { start ->
+                            leftSide = start.x < size.width / 2f
+                            level = if (leftSide) brightnessOf(activity) else volumeOf(audio)
+                        },
+                        onVerticalDrag = { change, dragY ->
+                            change.consume()
+                            level = (level - dragY / size.height.toFloat() * 1.4f).coerceIn(0f, 1f)
+                            if (leftSide) {
+                                setBrightnessOf(activity, level)
+                                hud = ctx.getString(R.string.hud_brightness, (level * 100f).roundToInt())
+                            } else {
+                                setVolumeOf(audio, level)
+                                hud = ctx.getString(R.string.hud_volume, (level * 100f).roundToInt())
+                            }
+                            hudTick++
+                        }
+                    )
+                }
+            }
+            .pointerInput(locked) {
+                if (!locked) {
+                    var target = 0L
+                    detectHorizontalDragGestures(
+                        onDragStart = { target = positionNow },
+                        onDragEnd = { if (durationNow > 0L) engine.seekTo(target) },
+                        onDragCancel = { },
+                        onHorizontalDrag = { change, dragX ->
+                            change.consume()
+                            if (durationNow > 0L) {
+                                target = (target + (dragX / size.width.toFloat() * 90_000f).toLong()).coerceIn(0L, durationNow)
+                                hud = clock(target) + " / " + clock(durationNow)
+                                hudTick++
+                            }
+                        }
+                    )
+                }
+            }
     ) {
         MediaSurface(engine, isAudio, artwork, Modifier.fillMaxSize())
-        AnimatedVisibility(visible = controlsVisible, enter = fadeIn(), exit = fadeOut()) {
+        AnimatedVisibility(visible = controlsVisible && !locked, enter = fadeIn(), exit = fadeOut()) {
             Box(Modifier.fillMaxSize().background(Color(0x99000000))) {
                 Row(
                     Modifier.align(Alignment.TopStart).fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
@@ -338,6 +466,14 @@ private fun LandscapePlayer(
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleMedium
                     )
+                    if (onPip != null && !isAudio) {
+                        IconButton(onClick = { wakeTick++; onPip() }) {
+                            Icon(painterResource(R.drawable.ic_pip), contentDescription = stringResource(R.string.tools_pip), tint = Color.White)
+                        }
+                    }
+                    IconButton(onClick = { locked = true; controlsVisible = false }) {
+                        Icon(painterResource(R.drawable.ic_lock), contentDescription = stringResource(R.string.player_lock), tint = Color.White)
+                    }
                     IconButton(onClick = { wakeTick++; onQueue() }) {
                         Icon(painterResource(R.drawable.ic_playlist), contentDescription = stringResource(R.string.player_playlist), tint = Color.White)
                     }
@@ -382,6 +518,32 @@ private fun LandscapePlayer(
                         SpeedPill { wakeTick++ }
                     }
                 }
+            }
+        }
+
+        // Locked: only an unlock button, which appears when the screen is tapped
+        AnimatedVisibility(
+            visible = locked && controlsVisible,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.CenterStart).padding(start = 24.dp)
+        ) {
+            Box(
+                Modifier.size(56.dp).clip(CircleShape).background(Color(0x99000000))
+                    .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                    .clickable { locked = false; wakeTick++ },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(painterResource(R.drawable.ic_lock), contentDescription = stringResource(R.string.player_unlock), tint = Color.White)
+            }
+        }
+
+        if (hud.isNotEmpty()) {
+            Box(
+                Modifier.align(Alignment.TopCenter).padding(top = 40.dp).clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xCC000000)).padding(horizontal = 18.dp, vertical = 10.dp)
+            ) {
+                Text(hud, color = Color.White, style = MaterialTheme.typography.titleMedium)
             }
         }
     }
@@ -692,67 +854,6 @@ private fun QueueSheet(onDismiss: () -> Unit) {
             }
         }
         Spacer(Modifier.height(16.dp))
-    }
-}
-
-// Shuffle, repeat and speed as pill choices
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun PlayerSettingsSheet(onDismiss: () -> Unit) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = Color(0xFF111115),
-        contentColor = Color.White
-    ) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
-            Text(stringResource(R.string.player_settings), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(16.dp))
-            SettingsLabel(R.string.player_shuffle)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OptionChip(stringResource(R.string.player_shuffle_off), !Playback.shuffle, Modifier.weight(1f)) {
-                    if (Playback.shuffle) Playback.toggleShuffle()
-                }
-                OptionChip(stringResource(R.string.player_shuffle_on), Playback.shuffle, Modifier.weight(1f)) {
-                    if (!Playback.shuffle) Playback.toggleShuffle()
-                }
-            }
-            Spacer(Modifier.height(16.dp))
-            SettingsLabel(R.string.player_repeat)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RepeatMode.values().forEach { mode ->
-                    OptionChip(stringResource(repeatLabel(mode)), Playback.repeat == mode, Modifier.weight(1f)) {
-                        Playback.applyRepeat(mode)
-                    }
-                }
-            }
-            Spacer(Modifier.height(16.dp))
-            SettingsLabel(R.string.player_speed)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SPEEDS.forEach { s ->
-                    OptionChip(speedLabel(s), Playback.playbackSpeed == s, Modifier.weight(1f)) { Playback.setSpeed(s) }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SettingsLabel(res: Int) {
-    Text(stringResource(res), style = MaterialTheme.typography.bodySmall, color = MutedText, modifier = Modifier.padding(bottom = 8.dp))
-}
-
-@Composable
-private fun OptionChip(label: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(22.dp)
-    Box(
-        modifier.height(44.dp).clip(shape)
-            .background(if (selected) MaterialTheme.colorScheme.primary else PillFill)
-            .border(1.dp, if (selected) Color.Transparent else PillBorder, shape)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(label, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 6.dp))
     }
 }
 

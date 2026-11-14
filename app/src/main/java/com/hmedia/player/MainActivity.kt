@@ -8,7 +8,10 @@ import android.net.Uri
 import android.net.http.SslError
 import android.os.Bundle
 import android.os.Message
+import android.content.res.Configuration
 import android.widget.Toast
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.toArgb
 import android.webkit.CookieManager
 import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
@@ -65,11 +68,22 @@ private class WebHolder {
 }
 
 class MainActivity : AppCompatActivity() {
+    // Tells the player when the app is in the small Picture-in-Picture window
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        PipState.inPip = isInPictureInPictureMode
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             val prefs = remember { AppPrefs(applicationContext) }
-            HMediaTheme(prefs.theme, prefs.font) {
+            HMediaTheme(
+                prefs.theme,
+                prefs.font,
+                accentOverride = if (prefs.accentOverride != 0) Color(prefs.accentOverride) else null,
+                amoled = prefs.amoled
+            ) {
                 AppShell(prefs)
             }
         }
@@ -359,6 +373,15 @@ fun SettingsScreen(prefs: AppPrefs, onProfile: () -> Unit = {}, onDownloads: () 
             OptionRow(stringResource(R.string.profile_open), false) { onProfile() }
             Text(stringResource(R.string.signed_in_as, stringResource(R.string.guest)))
         }
+        Section(stringResource(R.string.player_section)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.resume_playback))
+                    Text(stringResource(R.string.resume_note), style = MaterialTheme.typography.bodySmall)
+                }
+                Switch(checked = prefs.resumeEnabled, onCheckedChange = prefs::setResumeEnabled)
+            }
+        }
         Section(stringResource(R.string.downloads_title)) {
             OptionRow(stringResource(R.string.downloads_open), false) { onDownloads() }
         }
@@ -369,6 +392,21 @@ fun SettingsScreen(prefs: AppPrefs, onProfile: () -> Unit = {}, onDownloads: () 
                     // A photo theme brings its own picture as the background
                     t.photo?.let { prefs.setBackgroundPath("res:$it") }
                 }
+            }
+        }
+        Section(stringResource(R.string.accent_color)) {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                AccentSwatch(prefs.theme.accent, prefs.accentOverride == 0) { prefs.setAccentOverride(0) }
+                ACCENT_CHOICES.forEach { choice ->
+                    AccentSwatch(choice, prefs.accentOverride == choice.toArgb()) { prefs.setAccentOverride(choice.toArgb()) }
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.amoled_black), modifier = Modifier.weight(1f))
+                Switch(checked = prefs.amoled, onCheckedChange = prefs::setAmoled)
             }
         }
         Section(stringResource(R.string.font)) {
@@ -453,6 +491,16 @@ private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) 
     Spacer(Modifier.height(20.dp))
     Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
     Column(content = content)
+}
+
+// A round colour sample; the chosen one has a white ring
+@Composable
+private fun AccentSwatch(color: Color, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier.size(38.dp).clip(CircleShape).background(color)
+            .border(if (selected) 3.dp else 1.dp, if (selected) Color.White else Color(0x44FFFFFF), CircleShape)
+            .clickable(onClick = onClick)
+    )
 }
 
 @Composable

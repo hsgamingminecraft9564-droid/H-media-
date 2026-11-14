@@ -101,7 +101,7 @@ private enum class Pane { NONE, RENAME, DETAILS, DELETE }
 // Files from other apps need the phone's own permission prompt, which this sheet starts when needed.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FileActionsSheet(target: FileTarget, onDismiss: () -> Unit, onChanged: () -> Unit) {
+fun FileActionsSheet(target: FileTarget, onDismiss: () -> Unit, onChanged: () -> Unit, prefs: AppPrefs? = null) {
     val ctx = LocalContext.current
     var pane by remember { mutableStateOf(Pane.NONE) }
     var info by remember { mutableStateOf<FileInfo?>(null) }
@@ -196,6 +196,18 @@ fun FileActionsSheet(target: FileTarget, onDismiss: () -> Unit, onChanged: () ->
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
         )
+        if (prefs != null && (mime.startsWith("video") || mime.startsWith("audio"))) {
+            val favorite = prefs.isMediaFavorite(target.uri)
+            ActionRow(
+                R.drawable.ic_favorite,
+                if (favorite) R.string.tools_favorite_remove else R.string.tools_favorite_add,
+                false
+            ) {
+                prefs.toggleMediaFavorite(MediaItem(title = shownName, uri = target.uri, isVideo = mime.startsWith("video")))
+                onChanged()
+                onDismiss()
+            }
+        }
         ActionRow(R.drawable.ic_edit, R.string.file_rename, false) { error = ""; pane = Pane.RENAME }
         ActionRow(R.drawable.ic_play, R.string.file_open_with, false) { openInAnotherApp(ctx, target.uri, mime); onDismiss() }
         ActionRow(R.drawable.ic_share, R.string.file_share, false) { shareFile(ctx, target.uri, mime); onDismiss() }

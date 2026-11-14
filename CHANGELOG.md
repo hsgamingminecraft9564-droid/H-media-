@@ -1,5 +1,23 @@
 # H Media Player: changelog
 
+## 0.5.0
+### Added
+- Player tools sheet (Settings tab of the player): shuffle, repeat, speed from 0.25x to 4x, audio track and subtitle track choice, equalizer presets, sleep timer (minutes or end of track), A-B repeat, bookmarks per file, favourite, Picture-in-Picture and a playback info panel. Each control is hidden when the file or engine cannot do it.
+- Landscape video gestures: swipe up or down on the left for brightness and on the right for volume, swipe sideways to seek, double-tap left or right for 10 seconds back or forward. A lock button turns the gestures and controls off.
+- Resume playback: local videos and songs continue where they were left (Settings, Player). Nothing is kept in Private Mode.
+- Favourites: add songs and videos from the three-dot menu or the player tools; they show on Home.
+- Downloads from the in-app browser go to the Downloads folder, with a Downloads screen (details, rename, open in another app, share, delete).
+- File actions on every song and video: rename, open in another app, share, details, delete.
+- The last web page comes back when the app is opened again.
+- Built-in background pictures and four photo themes; accent colour choice and a pure black (AMOLED) option.
+- New launcher icon (adaptive, with a themed-icon version) and new in-app logo.
+- More search engines: Yahoo, Startpage, Yandex, Qwant, Baidu and Naver. DuckDuckGo removed. Google is the default.
+- New player layout in portrait and landscape, following the concept art.
+### Changed
+- Home uses the same compact header as the other screens.
+### Not verified
+- Not compiled or tested on a phone yet. Check Picture-in-Picture, the gestures and the equalizer on a real phone.
+
 ## 0.4.2
 ### Added
 - Search engine choice in Settings: Google (default), Bing, DuckDuckGo, Brave Search and Ecosia. The chosen engine is used for All, Images, Videos and News.

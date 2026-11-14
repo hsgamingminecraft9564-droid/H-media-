@@ -115,6 +115,12 @@ fun HomeDashboard(
                     }
                 }
             } else {
+                val favorites = prefs.mediaFavorites
+                if (favorites.isNotEmpty()) {
+                    MediaRow(stringResource(R.string.home_favorites), favorites, loaded = true) { index ->
+                        if (Playback.playQueue(ctx, prefs, favorites, index)) onPlayed()
+                    }
+                }
                 val recent = Playback.recent
                 if (recent.isNotEmpty()) {
                     MediaRow(stringResource(R.string.home_recent), recent, loaded = true) { index ->

@@ -332,7 +332,8 @@ fun DownloadsScreen(prefs: AppPrefs, onPlayed: () -> Unit, onBack: () -> Unit) {
         FileActionsSheet(
             target = FileTarget(file.uri, file.name, file.mime),
             onDismiss = { actionsFor = null },
-            onChanged = { reload++ }
+            onChanged = { reload++ },
+            prefs = prefs
         )
     }
 }

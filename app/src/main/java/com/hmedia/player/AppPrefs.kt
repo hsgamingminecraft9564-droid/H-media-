@@ -1,6 +1,7 @@
 package com.hmedia.player
 
 import android.content.Context
+import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -158,11 +159,142 @@ class AppPrefs(context: Context) {
         sp.edit().putBoolean("was_on_web", on).apply()
     }
 
+    // ---- Favourite songs and videos, newest first, saved as "kind|title|address" lines
+    private var mediaFavState by mutableStateOf(readMediaFavorites())
+    val mediaFavorites: List<MediaItem> get() = mediaFavState
+
+    private fun readMediaFavorites(): List<MediaItem> =
+        (sp.getString("media_favs", "") ?: "").split("\n").mapNotNull { decodeFavorite(it) }
+
+    fun isMediaFavorite(uri: Uri): Boolean = mediaFavState.any { it.uri == uri }
+
+    fun toggleMediaFavorite(item: MediaItem) {
+        mediaFavState = if (mediaFavState.any { it.uri == item.uri }) {
+            mediaFavState.filter { it.uri != item.uri }
+        } else {
+            listOf(item) + mediaFavState
+        }
+        sp.edit().putString("media_favs", mediaFavState.joinToString("\n") { encodeFavorite(it) }).apply()
+    }
+
+    // ---- Bookmarks: named times inside one file, kept per file address
+    private var bookmarkMap: Map<String, List<Long>> = readBookmarks()
+    private var bookmarkTick by mutableStateOf(0)
+
+    private fun readBookmarks(): Map<String, List<Long>> {
+        val result = LinkedHashMap<String, List<Long>>()
+        (sp.getString("bookmarks", "") ?: "").split("\n").forEach { line ->
+            val tab = line.lastIndexOf('\t')
+            if (tab > 0) {
+                val times = line.substring(tab + 1).split(",").mapNotNull { it.toLongOrNull() }
+                if (times.isNotEmpty()) result[line.substring(0, tab)] = times
+            }
+        }
+        return result
+    }
+
+    fun bookmarks(uri: Uri): List<Long> {
+        val ignored = bookmarkTick // read so a change redraws the list
+        return if (ignored >= 0) bookmarkMap[uri.toString()] ?: emptyList() else emptyList()
+    }
+
+    private fun saveBookmarks(next: Map<String, List<Long>>) {
+        bookmarkMap = next
+        bookmarkTick++
+        sp.edit().putString("bookmarks", next.entries.joinToString("\n") { it.key + "\t" + it.value.joinToString(",") }).apply()
+    }
+
+    fun addBookmark(uri: Uri, positionMs: Long) {
+        val key = uri.toString()
+        val times = ((bookmarkMap[key] ?: emptyList()) + positionMs).distinct().sorted().take(50)
+        saveBookmarks((bookmarkMap + (key to times)).entries.toList().takeLast(200).associate { it.key to it.value })
+    }
+
+    fun removeBookmark(uri: Uri, positionMs: Long) {
+        val key = uri.toString()
+        val times = (bookmarkMap[key] ?: return).filter { it != positionMs }
+        saveBookmarks(if (times.isEmpty()) bookmarkMap - key else bookmarkMap + (key to times))
+    }
+
+    // ---- Resume: where each file was left, so it continues from there. Not kept in Private Mode.
+    private var resumeEnabledState by mutableStateOf(sp.getBoolean("resume_enabled", true))
+    val resumeEnabled: Boolean get() = resumeEnabledState
+
+    fun setResumeEnabled(on: Boolean) {
+        resumeEnabledState = on
+        sp.edit().putBoolean("resume_enabled", on).apply()
+        if (!on) {
+            resumeMap.clear()
+            sp.edit().remove("resume").apply()
+        }
+    }
+
+    private val resumeMap: LinkedHashMap<String, Long> = LinkedHashMap<String, Long>().also { map ->
+        (sp.getString("resume", "") ?: "").split("\n").forEach { line ->
+            val tab = line.lastIndexOf('\t')
+            val ms = if (tab > 0) line.substring(tab + 1).toLongOrNull() else null
+            if (ms != null) map[line.substring(0, tab)] = ms
+        }
+    }
+
+    fun resumePosition(uri: Uri): Long = resumeMap[uri.toString()] ?: 0L
+
+    fun saveResume(uri: Uri, positionMs: Long) {
+        val key = uri.toString()
+        resumeMap.remove(key)
+        resumeMap[key] = positionMs
+        while (resumeMap.size > 100) resumeMap.remove(resumeMap.keys.first())
+        writeResume()
+    }
+
+    fun clearResume(uri: Uri) {
+        if (resumeMap.remove(uri.toString()) != null) writeResume()
+    }
+
+    private fun writeResume() {
+        sp.edit().putString("resume", resumeMap.entries.joinToString("\n") { it.key + "\t" + it.value }).apply()
+    }
+
+    // ---- Equalizer preset, used for every file
+    private var eqPresetState by mutableStateOf(sp.getString("eq_preset", "Flat") ?: "Flat")
+    val eqPreset: String get() = eqPresetState
+
+    fun setEqPreset(name: String) {
+        eqPresetState = name
+        sp.edit().putString("eq_preset", name).apply()
+    }
+
+    // ---- Look: an accent colour that replaces the theme's own (0 = use the theme's), and pure black
+    private var accentState by mutableStateOf(sp.getInt("accent", 0))
+    val accentOverride: Int get() = accentState
+
+    fun setAccentOverride(argb: Int) {
+        accentState = argb
+        sp.edit().putInt("accent", argb).apply()
+    }
+
+    private var amoledState by mutableStateOf(sp.getBoolean("amoled", false))
+    val amoled: Boolean get() = amoledState
+
+    fun setAmoled(on: Boolean) {
+        amoledState = on
+        sp.edit().putBoolean("amoled", on).apply()
+    }
+
     fun clearRecent() {
         recentState = emptyList()
         lastWebUrlState = ""
         sp.edit().remove("recent").remove("last_web_url").apply()
     }
+}
+
+private fun encodeFavorite(item: MediaItem): String =
+    (if (item.isVideo) "v" else "a") + "|" + Uri.encode(item.title) + "|" + item.uri.toString()
+
+private fun decodeFavorite(line: String): MediaItem? {
+    val parts = line.split("|", limit = 3)
+    if (parts.size < 3 || parts[2].isBlank()) return null
+    return MediaItem(title = Uri.decode(parts[1]), uri = Uri.parse(parts[2]), isVideo = parts[0] == "v")
 }
 
 private inline fun <reified T : Enum<T>> enumOr(name: String?, default: T): T =

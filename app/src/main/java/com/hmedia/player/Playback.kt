@@ -2,10 +2,14 @@ package com.hmedia.player
 
 import android.content.Context
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.hmedia.voidengine.PlaybackSource
+import com.hmedia.voidengine.features.equalizer.EqualizerPresets
 import com.hmedia.voidengine.PlaybackState
 import com.hmedia.voidengine.VoidEngine
 import com.hmedia.voidengine.VoidEngines
@@ -64,6 +68,30 @@ object Playback {
         private set
     var recent by mutableStateOf<List<MediaItem>>(emptyList())
         private set
+
+    // Sleep timer: pauses after a set time, or when the current track ends
+    var sleepEndsAtMs by mutableStateOf(0L)
+        private set
+    var sleepAfterTrack by mutableStateOf(false)
+        private set
+
+    // A-B repeat: the part of the file between the two marks plays over and over. -1 means not set.
+    var abStartMs by mutableStateOf(-1L)
+        private set
+    var abEndMs by mutableStateOf(-1L)
+        private set
+
+    private val sleepHandler = Handler(Looper.getMainLooper())
+    private val sleepRunnable = Runnable {
+        sleepEndsAtMs = 0L
+        sleepAfterTrack = false
+        engine?.pause()
+    }
+    private var lastResumeSave = 0L
+    private var equalizerApplied = false
+
+    // The saved settings, for the player tools
+    val prefs: AppPrefs? get() = appPrefs
 
     private var queue: List<MediaItem> = emptyList()
     private var order: List<Int> = emptyList()
@@ -125,6 +153,72 @@ object Playback {
 
     fun seekTo(ms: Long) {
         engine?.seekTo(ms)
+    }
+
+    fun startSleepTimer(minutes: Int) {
+        cancelSleep()
+        val delayMs = minutes * 60_000L
+        sleepEndsAtMs = SystemClock.elapsedRealtime() + delayMs
+        sleepHandler.postDelayed(sleepRunnable, delayMs)
+    }
+
+    fun sleepAfterCurrentTrack() {
+        cancelSleep()
+        sleepAfterTrack = true
+    }
+
+    fun cancelSleep() {
+        sleepHandler.removeCallbacks(sleepRunnable)
+        sleepEndsAtMs = 0L
+        sleepAfterTrack = false
+    }
+
+    private fun positionNow(): Long = engine?.snapshot?.value?.positionMs ?: 0L
+
+    // Marks the start of the repeated part at the current time
+    fun markAbStart() {
+        val position = positionNow()
+        abStartMs = position
+        if (abEndMs in 0..position) abEndMs = -1L
+    }
+
+    // Marks the end of the repeated part at the current time; the start is the beginning if it was not set
+    fun markAbEnd() {
+        val position = positionNow()
+        if (abStartMs < 0L) abStartMs = 0L
+        if (position > abStartMs + 500L) abEndMs = position
+    }
+
+    fun clearAb() {
+        abStartMs = -1L
+        abEndMs = -1L
+    }
+
+    // Applies the saved equalizer preset to the playing file, when its backend has an equalizer
+    fun applyEqualizer() {
+        val e = engine ?: return
+        val bands = e.snapshot.value.equalizerBandsHz.size
+        if (bands == 0) return
+        e.setEqualizer(EqualizerPresets.forName(appPrefs?.eqPreset ?: EqualizerPresets.FLAT, bands))
+        equalizerApplied = true
+    }
+
+    fun chooseEqualizer(name: String) {
+        appPrefs?.setEqPreset(name)
+        applyEqualizer()
+    }
+
+    // Remembers where a local file is, about every five seconds, so it continues there next time
+    private fun saveResumePoint(uri: Uri, positionMs: Long, durationMs: Long) {
+        val saved = appPrefs ?: return
+        if (!saved.resumeEnabled || saved.privateMode) return
+        val scheme = uri.scheme ?: return
+        if (scheme != "file" && scheme != "content") return
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastResumeSave < 5000L) return
+        lastResumeSave = now
+        if (durationMs > 0L && positionMs > durationMs - 10_000L) saved.clearResume(uri)
+        else if (positionMs > 10_000L) saved.saveResume(uri, positionMs)
     }
 
     fun setSpeed(value: Float) {
@@ -214,6 +308,8 @@ object Playback {
 
     // Stops playback and removes the queue
     fun stop() {
+        cancelSleep()
+        clearAb()
         releaseEngine()
         title = ""
         currentUri = null
@@ -258,6 +354,12 @@ object Playback {
     private fun onEnded() {
         if (endHandled) return
         endHandled = true
+        currentUri?.let { appPrefs?.clearResume(it) }
+        if (sleepAfterTrack) {
+            // Sleep timer set to "end of track": stay stopped
+            sleepAfterTrack = false
+            return
+        }
         if (repeat == RepeatMode.ONE) {
             seekTo(0L)
             engine?.play()
@@ -280,7 +382,17 @@ object Playback {
         kind = if (item.isVideo) "video" else "audio"
         status = "Opening..."
         recent = (listOf(item) + recent.filter { it.uri != item.uri }).take(RECENT_MAX)
-        e.open(PlaybackSource.fromUri(item.uri, title = item.title))
+        clearAb()
+        equalizerApplied = false
+        lastResumeSave = SystemClock.elapsedRealtime()
+        val saved = appPrefs
+        val scheme = item.uri.scheme ?: ""
+        val resumeAt = if (saved != null && saved.resumeEnabled && !saved.privateMode && (scheme == "file" || scheme == "content")) {
+            saved.resumePosition(item.uri)
+        } else {
+            0L
+        }
+        e.open(PlaybackSource.fromUri(item.uri, title = item.title, startPositionMs = resumeAt))
         publishNowPlaying(item, context)
         if (connector == null) {
             connector = PlaybackServiceConnector(context).also { it.connect() }
@@ -299,6 +411,17 @@ object Playback {
                 playing = snap.playWhenReady
                 status = describe(snap.state, snap.error?.toString())
                 if (snap.state == PlaybackState.ENDED) onEnded() else endHandled = false
+                if (!equalizerApplied && snap.equalizerBandsHz.isNotEmpty()) applyEqualizer()
+                // A-B repeat: jump back to the start mark when the end mark is reached
+                if (snap.state == PlaybackState.PLAYING && abStartMs >= 0L && abEndMs > abStartMs && snap.positionMs >= abEndMs) {
+                    e.seekTo(abStartMs)
+                }
+                val now = currentUri
+                if (now != null && snap.source?.uri == now.toString() &&
+                    (snap.state == PlaybackState.PLAYING || snap.state == PlaybackState.PAUSED)
+                ) {
+                    saveResumePoint(now, snap.positionMs, snap.durationMs)
+                }
             }
         }
     }

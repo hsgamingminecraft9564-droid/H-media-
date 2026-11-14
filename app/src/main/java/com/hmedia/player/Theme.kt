@@ -33,17 +33,32 @@ enum class HFont(val label: String, val family: FontFamily) {
     SCRIPT("Script", FontFamily.Cursive)
 }
 
+// Accent colours to choose from in Settings, in place of the theme's own
+val ACCENT_CHOICES = listOf(
+    Color(0xFFE53935), Color(0xFFFF7043), Color(0xFFFFB300), Color(0xFF7CB342), Color(0xFF26A69A),
+    Color(0xFF29B6F6), Color(0xFF5C6BC0), Color(0xFFAB47BC), Color(0xFFEC407A)
+)
+
 @Composable
-fun HMediaTheme(theme: HTheme, font: HFont, content: @Composable () -> Unit) {
+fun HMediaTheme(
+    theme: HTheme,
+    font: HFont,
+    accentOverride: Color? = null,
+    amoled: Boolean = false,
+    content: @Composable () -> Unit
+) {
+    val accent = accentOverride ?: theme.accent
+    val background = if (amoled) Color.Black else theme.background
+    val surface = if (amoled) Color(0xFF0A0A0C) else theme.surface
     MaterialTheme(
         colorScheme = darkColorScheme(
-            primary = theme.accent,
+            primary = accent,
             onPrimary = theme.background,
-            background = theme.background,
+            background = background,
             onBackground = theme.text,
-            surface = theme.surface,
+            surface = surface,
             onSurface = theme.text,
-            surfaceVariant = theme.surface,
+            surfaceVariant = surface,
             onSurfaceVariant = theme.text.copy(alpha = 0.75f)
         ),
         typography = Typography().withFamily(font.family),

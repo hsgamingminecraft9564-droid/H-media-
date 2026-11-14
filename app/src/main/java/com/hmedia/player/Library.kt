@@ -232,7 +232,8 @@ fun LibraryScreen(
         FileActionsSheet(
             target = FileTarget(item.uri, item.title, if (item.isVideo) "video/*" else "audio/*"),
             onDismiss = { actionsFor = null },
-            onChanged = { reload++ }
+            onChanged = { reload++ },
+            prefs = prefs
         )
     }
 }
