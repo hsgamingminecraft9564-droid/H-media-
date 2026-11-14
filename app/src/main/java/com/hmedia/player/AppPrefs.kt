@@ -118,7 +118,8 @@ class AppPrefs(context: Context) {
     }
 
     // Picture chosen from the gallery for the background; empty means the default background
-    private var backgroundPathState by mutableStateOf(sp.getString("background_path", "") ?: "")
+    // Until a choice is made, the app shows its own first picture. An empty value means "no picture".
+    private var backgroundPathState by mutableStateOf(sp.getString("background_path", "res:alpenglow") ?: "res:alpenglow")
     val backgroundPath: String get() = backgroundPathState
 
     fun setBackgroundPath(path: String) {

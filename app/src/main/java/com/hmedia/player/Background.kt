@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -42,19 +43,48 @@ fun saveBackground(ctx: Context, uri: Uri): String? = runCatching {
     file.absolutePath
 }.getOrNull()
 
+// Pictures that come with the app. The chosen one is saved as "res:" and its key, for example "res:torii".
+// Each has a small copy for the picker, so the picker does not have to load the full pictures.
+data class BundledBackground(val key: String, val label: Int, val full: Int, val thumb: Int)
+
+object BundledBackgrounds {
+    val all = listOf(
+        BundledBackground("alpenglow", R.string.bg_alpenglow, R.drawable.bg_alpenglow, R.drawable.bgt_alpenglow),
+        BundledBackground("torii", R.string.bg_torii, R.drawable.bg_torii, R.drawable.bgt_torii),
+        BundledBackground("glacier", R.string.bg_glacier, R.drawable.bg_glacier, R.drawable.bgt_glacier),
+        BundledBackground("misty", R.string.bg_misty, R.drawable.bg_misty, R.drawable.bgt_misty)
+    )
+
+    fun find(path: String): BundledBackground? =
+        if (path.startsWith("res:")) all.firstOrNull { it.key == path.removePrefix("res:") } else null
+}
+
 // The chosen picture behind the whole app, dimmed so text stays readable.
 // While a video from the phone plays, the video backdrop is shown instead.
 @Composable
 fun AppBackground(prefs: AppPrefs) {
     val path = prefs.backgroundPath
     val picture by produceState<ImageBitmap?>(initialValue = null, key1 = path) {
-        value = if (path.isEmpty()) {
+        value = if (path.isEmpty() || path.startsWith("res:")) {
             null
         } else {
             withContext(Dispatchers.IO) { runCatching { BitmapFactory.decodeFile(path)?.asImageBitmap() }.getOrNull() }
         }
     }
     val videoBackdropShowing = Playback.kind == "video" && Playback.currentUri?.scheme == "content"
+    val bundled = BundledBackgrounds.find(path)
+    if (bundled != null && !videoBackdropShowing) {
+        Box(Modifier.fillMaxSize()) {
+            Image(
+                painter = painterResource(bundled.full),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            Box(Modifier.fillMaxSize().background(Color(0x990B0B0F)))
+        }
+        return
+    }
     val image = picture
     if (image != null && !videoBackdropShowing) {
         Box(Modifier.fillMaxSize()) {

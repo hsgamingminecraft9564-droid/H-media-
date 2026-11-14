@@ -133,7 +133,7 @@ This version has no ads and no accounts. Your profile (name, age, gender and pho
     <string name="iptv_no_favorites">No favourite channels yet. Tap the star on a channel to add it.</string>
     <string name="background_title">Background</string>
     <string name="background_choose">Choose from gallery</string>
-    <string name="background_default">Default background</string>
+    <string name="background_default">No picture</string>
     <string name="background_note">Pick a picture from your gallery. It is copied into the app and dimmed so the text stays easy to read.</string>
     <string name="search_engine_title">Search engine</string>
     <string name="player_playlist">Playlist</string>
@@ -181,4 +181,9 @@ This version has no ads and no accounts. Your profile (name, age, gender and pho
     <string name="file_detail_size">Size</string>
     <string name="file_detail_modified">Modified</string>
     <string name="file_detail_location">Location</string>
+    <string name="background_recommended">Recommended pictures</string>
+    <string name="bg_alpenglow">Alpenglow Peaks</string>
+    <string name="bg_torii">Floating Torii</string>
+    <string name="bg_glacier">Glacier Sky</string>
+    <string name="bg_misty">Misty River</string>
 </resources>

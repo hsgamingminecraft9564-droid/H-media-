@@ -96,26 +96,12 @@ fun HomeDashboard(
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        Box(Modifier.fillMaxWidth().height(if (landscape) 96.dp else 132.dp)) {
-            BannerBackground(Modifier.fillMaxSize())
-            Row(Modifier.align(Alignment.TopEnd).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { onOpen(Dest.SEARCH) }) {
-                    Icon(painterResource(R.drawable.ic_search), contentDescription = stringResource(R.string.search_title), tint = Color.White)
-                }
-                ProfileAvatar(prefs, 40.dp) { onOpen(Dest.PROFILE) }
-            }
-             Row(Modifier.align(Alignment.TopStart).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Image(painterResource(R.drawable.hmp_logo), contentDescription = null, modifier = Modifier.size(36.dp))
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    stringResource(R.string.home_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-            }        }
+        // Same top bar as the other screens, so there is no tall empty banner above the lists
+        Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+            AppHeader(prefs, onSearch = { onOpen(Dest.SEARCH) }, onProfile = { onOpen(Dest.PROFILE) })
+        }
 
-        Column(Modifier.fillMaxWidth().padding(16.dp)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
             if (!hasAccess) {
                 Card(Modifier.fillMaxWidth().padding(top = 20.dp)) {
                     Column(Modifier.padding(16.dp)) {

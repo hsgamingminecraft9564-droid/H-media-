@@ -26,6 +26,10 @@ import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -359,17 +363,53 @@ fun SettingsScreen(prefs: AppPrefs, onProfile: () -> Unit = {}, onDownloads: () 
             OptionRow(stringResource(R.string.downloads_open), false) { onDownloads() }
         }
         Section(stringResource(R.string.theme)) {
-            HTheme.entries.forEach { t -> OptionRow(t.label, prefs.theme == t) { prefs.setTheme(t) } }
+            HTheme.entries.forEach { t ->
+                OptionRow(t.label, prefs.theme == t) {
+                    prefs.setTheme(t)
+                    // A photo theme brings its own picture as the background
+                    t.photo?.let { prefs.setBackgroundPath("res:$it") }
+                }
+            }
         }
         Section(stringResource(R.string.font)) {
             HFont.entries.forEach { f -> OptionRow(f.label, prefs.font == f) { prefs.setFont(f) } }
         }
         Section(stringResource(R.string.background_title)) {
-            OptionRow(stringResource(R.string.background_choose), prefs.backgroundPath.isNotEmpty()) {
+            OptionRow(stringResource(R.string.background_choose), prefs.backgroundPath.isNotEmpty() && !prefs.backgroundPath.startsWith("res:")) {
                 backgroundPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
             }
             OptionRow(stringResource(R.string.background_default), prefs.backgroundPath.isEmpty()) {
                 prefs.setBackgroundPath("")
+            }
+            Text(
+                stringResource(R.string.background_recommended),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
+            )
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                BundledBackgrounds.all.forEach { picture ->
+                    val chosen = prefs.backgroundPath == "res:${picture.key}"
+                    val shape = RoundedCornerShape(14.dp)
+                    Column(
+                        Modifier.clickable { prefs.setBackgroundPath("res:${picture.key}") },
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Image(
+                            painter = painterResource(picture.thumb),
+                            contentDescription = stringResource(picture.label),
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.size(width = 84.dp, height = 140.dp).clip(shape)
+                                .border(if (chosen) 3.dp else 1.dp, if (chosen) MaterialTheme.colorScheme.primary else Color(0x33FFFFFF), shape)
+                        )
+                        Text(
+                            stringResource(picture.label),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (chosen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.width(84.dp).padding(top = 4.dp),
+                            maxLines = 1
+                        )
+                    }
+                }
             }
         }
         Section(stringResource(R.string.search_engine_title)) {
