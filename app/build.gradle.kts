@@ -23,10 +23,6 @@ run {
     }
 }
 
-// The signing key for published builds. The build workflow sets these values from GitHub secrets,
-// so every release is signed with the same key and installs over the last one as an update.
-val hmpKeystore: String? = System.getenv("HMP_KEYSTORE_PATH")
-
 android {
     namespace = "com.hmedia.player"
     compileSdk = 36
@@ -35,30 +31,17 @@ android {
         applicationId = "com.hmedia.player"
         minSdk = 26
         targetSdk = 36
-        versionCode = 19
-        versionName = "0.5.3"
+        versionCode = 18
+        versionName = "0.5.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "SEARCH_API_BASE", "\"$searchApiBase\"")
     }
 
-    signingConfigs {
-        if (hmpKeystore != null) {
-            create("hmp") {
-                storeFile = file(hmpKeystore)
-                storePassword = System.getenv("HMP_STORE_PASSWORD")
-                keyAlias = System.getenv("HMP_KEY_ALIAS")
-                keyPassword = System.getenv("HMP_KEY_PASSWORD")
-            }
-        }
-    }
     buildTypes {
-        getByName("debug") {
-            if (hmpKeystore != null) signingConfig = signingConfigs.getByName("hmp")
-        }
         release {
             // Signed with the debug key so the file installs on a phone (and over the debug build).
             // This is not a Play Store signature.
-            signingConfig = if (hmpKeystore != null) signingConfigs.getByName("hmp") else signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = false
         }
     }

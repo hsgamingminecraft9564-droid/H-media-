@@ -33,22 +33,6 @@ jobs:
           yes | "$SDKMANAGER" --licenses > /dev/null || true
           "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" "platform-tools"
 
-      - name: Prepare the signing key from GitHub secrets
-        if: ${{ secrets.HMP_KEYSTORE_B64 != '' }}
-        env:
-          HMP_KEYSTORE_B64: ${{ secrets.HMP_KEYSTORE_B64 }}
-          HMP_STORE_PASSWORD: ${{ secrets.HMP_STORE_PASSWORD }}
-          HMP_KEY_ALIAS: ${{ secrets.HMP_KEY_ALIAS }}
-          HMP_KEY_PASSWORD: ${{ secrets.HMP_KEY_PASSWORD }}
-        run: |
-          echo "$HMP_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/hmp-upload.jks"
-          {
-            echo "HMP_KEYSTORE_PATH=$RUNNER_TEMP/hmp-upload.jks"
-            echo "HMP_STORE_PASSWORD=$HMP_STORE_PASSWORD"
-            echo "HMP_KEY_ALIAS=$HMP_KEY_ALIAS"
-            echo "HMP_KEY_PASSWORD=$HMP_KEY_PASSWORD"
-          } >> "$GITHUB_ENV"
-
       - name: Build debug APK
         run: |
           set -o pipefail

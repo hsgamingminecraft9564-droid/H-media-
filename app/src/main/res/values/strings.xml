@@ -233,6 +233,6 @@ This version has no ads and no accounts. Your profile (name, age, gender and pho
     <string name="video_stretch">Stretch</string>
     <string name="video_rotate">Rotate screen</string>
     <string name="about_title">About</string>
-    <string name="about_version">Version 0.5.3</string>
+    <string name="about_version">Version 0.5.2</string>
     <string name="about_copyright">Copyright (c) 2026 Himanshu. All rights reserved.</string>
 </resources>
