@@ -1,0 +1,31 @@
+:root{--bg:#0b0b0f;--panel:#16161a;--line:#2a2a31;--red:#e11d2e;--red-dark:#9e0f1b;--text:#f2f2f4;--muted:#9a9aa2}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.55}
+a{color:#ff6b75}
+.top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:14px 20px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;color:var(--text);text-decoration:none;font-size:18px}
+.brand img{border-radius:8px}
+.brand b{color:var(--red)}
+nav a{color:var(--muted);text-decoration:none;margin-left:18px}
+nav a:hover{color:var(--text)}
+main{max-width:860px;margin:0 auto;padding:0 20px}
+.hero{text-align:center;padding:48px 0 28px}
+.hero-small{padding:36px 0 8px}
+.hero-logo{border-radius:28px;box-shadow:0 0 40px rgba(225,29,46,.35)}
+h1{font-size:40px;margin:18px 0 8px}
+.hero-small h1{margin-top:0}
+h2{margin-top:44px;border-left:4px solid var(--red);padding-left:12px}
+.lead{color:var(--muted);font-size:18px;max-width:620px;margin:0 auto 26px}
+.hero-small .lead{margin:0}
+.button{display:inline-block;background:linear-gradient(90deg,var(--red-dark),var(--red));color:#fff;text-decoration:none;font-weight:600;padding:16px 34px;border-radius:30px;font-size:18px}
+.button:hover{filter:brightness(1.1)}
+.small{color:var(--muted);font-size:14px}
+ul.features{padding:0;list-style:none}
+ul.features li{margin:10px 0;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+ol.steps li{margin:10px 0}
+details{border-bottom:1px solid var(--line)}
+details summary{cursor:pointer;font-weight:600;padding:12px 0}
+details p{color:var(--muted);margin:0 0 14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:16px 0}
+footer{text-align:center;color:var(--muted);font-size:14px;padding:40px 20px;border-top:1px solid var(--line);margin-top:50px}
+@media (max-width:600px){h1{font-size:30px}nav a{margin-left:12px}}
