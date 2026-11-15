@@ -1,5 +1,20 @@
 # H Media Player: changelog
 
+## 0.5.3
+### Changed
+- Every published build is signed with the same key (set in GitHub secrets), so a new version installs over the old one as an update. See SIGNING-SETUP.md.
+### Notes
+- Phones with a build from before this version need one uninstall first. Uninstalling removes the app's settings and lists.
+### Not verified
+- Not compiled or tested on a phone yet.
+
+## 0.5.2
+### Fixed
+- Dragging the player down no longer pauses playback. A video keeps playing in the mini player.
+- IPTV channels with plain http:// addresses now play.
+### Not verified
+- Not compiled or tested on a phone yet.
+
 ## 0.5.1
 ### Fixed
 - Video picture shape: the picture is now sized to the video's own shape in portrait and landscape, so it is no longer squashed or stretched. Bars appear above and below, or at the sides, where the shapes differ.

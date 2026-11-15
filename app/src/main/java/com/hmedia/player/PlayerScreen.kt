@@ -188,7 +188,7 @@ fun PlayerScreen(engine: VoidEngine, onSearch: () -> Unit = {}, onBack: () -> Un
         onDispose {
             if (!isAudioNow) {
                 engine.detachVideoView()
-                if (activity?.isChangingConfigurations != true) engine.pause()
+                // Playback carries on when the picture shrinks into the mini player
             }
         }
     }

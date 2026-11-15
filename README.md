@@ -1,4 +1,4 @@
-# H Media Player (version 0.5.1)
+# H Media Player (version 0.5.3)
 
 Copyright (c) 2026 Himanshu. All rights reserved.
 
