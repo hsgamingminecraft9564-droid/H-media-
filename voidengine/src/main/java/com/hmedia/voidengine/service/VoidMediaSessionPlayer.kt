@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026 Himanshu. All rights reserved.
+ */
+
 package com.hmedia.voidengine.service
 
 import androidx.media3.common.ForwardingPlayer

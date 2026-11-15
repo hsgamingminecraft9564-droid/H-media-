@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026 Himanshu. All rights reserved.
+ */
+
 package com.hmedia.voidengine.features.iptv
 
 import com.hmedia.voidengine.PlaybackSource

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026 Himanshu. All rights reserved.
+ */
+
 package com.hmedia.player
 
 import org.junit.Assert.assertEquals

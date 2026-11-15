@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026 Himanshu. All rights reserved.
+ */
+
 package com.hmedia.player
 
 data class IptvChannel(val name: String, val url: String, val group: String)

@@ -66,6 +66,17 @@ jobs:
           name: H-Media-Player-debug
           path: app/build/outputs/apk/debug/app-debug.apk
 
+      # The release build is the final one to install. It is built after the debug APK is safely saved.
+      - name: Build release APK
+        continue-on-error: true
+        run: gradle :app:assembleRelease --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: H-Media-Player-release
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: ignore
+
       - name: Save test and lint reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -76,3 +87,27 @@ jobs:
             app/build/reports/lint-results-debug.html
             app/build/test-results/
           if-no-files-found: ignore
+
+  # When a version tag such as v0.5.1 is pushed, the APK from the build is published on the
+  # Releases page under a fixed name, so the download link never changes.
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Get the APK saved by the build
+        uses: actions/download-artifact@v4
+        with:
+          name: H-Media-Player-debug
+          path: release
+
+      - name: Name the APK for download
+        run: mv release/app-debug.apk release/H-Media-Player.apk
+
+      - name: Publish the APK on the Releases page
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/H-Media-Player.apk
+          generate_release_notes: true

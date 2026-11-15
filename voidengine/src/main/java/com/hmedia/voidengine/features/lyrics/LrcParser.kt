@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026 Himanshu. All rights reserved.
+ */
+
 package com.hmedia.voidengine.features.lyrics
 
 data class LyricLine(val timeMs: Long, val text: String)

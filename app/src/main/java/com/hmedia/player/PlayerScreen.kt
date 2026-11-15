@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026 Himanshu. All rights reserved.
+ */
+
 package com.hmedia.player
 
 import android.app.Activity
@@ -93,29 +97,29 @@ internal fun repeatLabel(mode: RepeatMode): Int = when (mode) {
     RepeatMode.ONE -> R.string.player_repeat_one
 }
 
-private fun brightnessOf(activity: Activity?): Float {
+internal fun brightnessOf(activity: Activity?): Float {
     val level = activity?.window?.attributes?.screenBrightness ?: -1f
     return if (level >= 0f) level else 0.5f
 }
 
-private fun setBrightnessOf(activity: Activity?, level: Float) {
+internal fun setBrightnessOf(activity: Activity?, level: Float) {
     val window = activity?.window ?: return
     val params = window.attributes
     params.screenBrightness = level.coerceIn(0.02f, 1f)
     window.attributes = params
 }
 
-private fun volumeOf(audio: AudioManager): Float {
+internal fun volumeOf(audio: AudioManager): Float {
     val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
     return audio.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / max.toFloat()
 }
 
-private fun setVolumeOf(audio: AudioManager, level: Float) {
+internal fun setVolumeOf(audio: AudioManager, level: Float) {
     val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
     audio.setStreamVolume(AudioManager.STREAM_MUSIC, (level * max).roundToInt().coerceIn(0, max), 0)
 }
 
-private tailrec fun Context.findActivity(): Activity? = when (this) {
+internal tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
     is ContextWrapper -> baseContext.findActivity()
     else -> null
@@ -137,13 +141,15 @@ fun PlayerScreen(engine: VoidEngine, onSearch: () -> Unit = {}, onBack: () -> Un
     var artwork by remember { mutableStateOf<ImageBitmap?>(null) }
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    // Landscape hides the status and navigation bars so the picture uses the whole screen. They return in portrait and when leaving.
-    DisposableEffect(landscape) {
+    // Video always hides the status and navigation bars so the picture uses the whole screen, and music does
+    // it in landscape. They return in portrait music and when leaving.
+    val immersive = landscape || !isAudio
+    DisposableEffect(immersive) {
         val window = activity?.window
         if (window != null) {
             val controller = WindowCompat.getInsetsController(window, window.decorView)
             controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            if (landscape) controller.hide(WindowInsetsCompat.Type.systemBars()) else controller.show(WindowInsetsCompat.Type.systemBars())
+            if (immersive) controller.hide(WindowInsetsCompat.Type.systemBars()) else controller.show(WindowInsetsCompat.Type.systemBars())
         }
         onDispose {
             window?.let { WindowCompat.getInsetsController(it, it.decorView).show(WindowInsetsCompat.Type.systemBars()) }
@@ -204,7 +210,7 @@ fun PlayerScreen(engine: VoidEngine, onSearch: () -> Unit = {}, onBack: () -> Un
 
     // In the small Picture-in-Picture window only the picture is shown
     if (PipState.inPip && !isAudio) {
-        MediaSurface(engine, isAudio, artwork, Modifier.fillMaxSize())
+        VideoSurface(engine, snap.videoWidth, snap.videoHeight, FitMode.FIT, Modifier.fillMaxSize())
         return
     }
 
@@ -236,7 +242,16 @@ fun PlayerScreen(engine: VoidEngine, onSearch: () -> Unit = {}, onBack: () -> Un
 
         // The background is always dark, so the text on it is always light
         CompositionLocalProvider(LocalContentColor provides Color.White) {
-            if (landscape) {
+            if (!isAudio) {
+                // Video has its own player screen, the same in portrait and landscape
+                VideoPlayer(
+                    engine, snap,
+                    onBack = onBack,
+                    onQueue = { showQueue = true },
+                    onTools = { showSettings = true },
+                    onPip = enterPip
+                )
+            } else if (landscape) {
                 LandscapePlayer(
                     engine, isAudio, artwork, snap.playWhenReady, snap.positionMs, snap.durationMs, onBack,
                     onQueue = { showQueue = true }, onSettings = { showSettings = true }, onPip = enterPip
@@ -591,7 +606,7 @@ private fun PlayerTopBar(onBack: () -> Unit, onSearch: () -> Unit, onQueue: () -
 
 // Thin red seek bar with a round handle, and the times under it. Hidden for live streams.
 @Composable
-private fun PlayerSeek(engine: VoidEngine, positionMs: Long, durationMs: Long, onInteract: () -> Unit = {}) {
+internal fun PlayerSeek(engine: VoidEngine, positionMs: Long, durationMs: Long, onInteract: () -> Unit = {}) {
     if (durationMs <= 0) return
     var dragValue by remember { mutableStateOf<Float?>(null) }
     val max = durationMs.toFloat()
@@ -685,7 +700,7 @@ private fun PlayerTransport(engine: VoidEngine, playWhenReady: Boolean, big: Dp)
 
 // The big round play/pause button with a red ring
 @Composable
-private fun PlayRing(playing: Boolean, size: Dp, onClick: () -> Unit) {
+internal fun PlayRing(playing: Boolean, size: Dp, onClick: () -> Unit) {
     val accent = MaterialTheme.colorScheme.primary
     Box(
         Modifier.size(size)
@@ -706,7 +721,7 @@ private fun PlayRing(playing: Boolean, size: Dp, onClick: () -> Unit) {
 }
 
 @Composable
-private fun PillButton(onClick: () -> Unit, content: @Composable RowScope.() -> Unit) {
+internal fun PillButton(onClick: () -> Unit, content: @Composable RowScope.() -> Unit) {
     val shape = RoundedCornerShape(24.dp)
     Row(
         Modifier.height(48.dp).clip(shape).background(PillFill).border(1.dp, PillBorder, shape)
@@ -718,7 +733,7 @@ private fun PillButton(onClick: () -> Unit, content: @Composable RowScope.() -> 
 
 // "1x" with a small arrow; opens the list of speeds
 @Composable
-private fun SpeedPill(onInteract: () -> Unit = {}) {
+internal fun SpeedPill(onInteract: () -> Unit = {}) {
     var open by remember { mutableStateOf(false) }
     Box {
         PillButton(onClick = { open = true; onInteract() }) {

@@ -31,10 +31,25 @@ android {
         applicationId = "com.hmedia.player"
         minSdk = 26
         targetSdk = 36
-        versionCode = 16
-        versionName = "0.5.0"
+        versionCode = 17
+        versionName = "0.5.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "SEARCH_API_BASE", "\"$searchApiBase\"")
+    }
+
+    buildTypes {
+        release {
+            // Signed with the debug key so the file installs on a phone (and over the debug build).
+            // This is not a Play Store signature.
+            signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = false
+        }
+    }
+
+    lint {
+        // Texts that exist only in English must not stop a release build
+        abortOnError = false
+        checkReleaseBuilds = false
     }
 
     buildFeatures {

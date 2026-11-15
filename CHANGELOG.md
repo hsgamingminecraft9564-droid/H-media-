@@ -1,5 +1,16 @@
 # H Media Player: changelog
 
+## 0.5.1
+### Fixed
+- Video picture shape: the picture is now sized to the video's own shape in portrait and landscape, so it is no longer squashed or stretched. Bars appear above and below, or at the sides, where the shapes differ.
+- Web pages: a video's own full screen button now works in the in-app browser. The app's bars hide and the phone turns sideways while it is open; Back closes it.
+- Web pages: the "page could not be loaded" message no longer appears over pages that opened fine (it was triggered by adverts and blocked pop-up addresses).
+### Added
+- A separate video player screen, different from the music player: large title bar, jump back and forward 10 seconds, seek bar, lock, rotate screen, picture shape (Fit, Fill, Stretch), speed, playlist and tools. Same gestures as before in portrait and landscape.
+- A release build (`H-Media-Player-release` on the run page) next to the debug build. It is signed with the debug key, so it installs over the debug build and keeps your data. Not for the Play Store.
+### Not verified
+- Not compiled or tested on a phone yet. Check Fit, Fill and Stretch with a wide film and a tall phone video, and the web full screen on a video site.
+
 ## 0.5.0
 ### Added
 - Player tools sheet (Settings tab of the player): shuffle, repeat, speed from 0.25x to 4x, audio track and subtitle track choice, equalizer presets, sleep timer (minutes or end of track), A-B repeat, bookmarks per file, favourite, Picture-in-Picture and a playback info panel. Each control is hidden when the file or engine cannot do it.

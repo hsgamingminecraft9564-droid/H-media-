@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026 Himanshu. All rights reserved.
+ */
+
 package com.hmedia.player
 
 import android.Manifest
@@ -56,6 +60,7 @@ fun AppShell(prefs: AppPrefs) {
     var downloadsFrom by rememberSaveable { mutableStateOf(Dest.SETTINGS) }
     var returnTo by rememberSaveable { mutableStateOf(Dest.HOME) }
     var playerExpanded by rememberSaveable { mutableStateOf(false) }
+    var webFullscreen by remember { mutableStateOf(false) }
     var webUrl by rememberSaveable { mutableStateOf(prefs.lastWebUrl.ifBlank { SEARCH_HOME }) }
     // Remembers whether the web page was the open screen, for the next start. The Downloads and player screens do not change it.
     LaunchedEffect(dest) {
@@ -108,7 +113,7 @@ fun AppShell(prefs: AppPrefs) {
         if (!started) {
             WelcomeScreen(prefs) { started = true }
         } else {
-            val showNav = dest != Dest.PLAYER
+            val showNav = dest != Dest.PLAYER && !webFullscreen
             Row(Modifier.fillMaxSize()) {
                 if (showNav && useRail) {
                     SideRail(current = dest) { selected -> dest = selected }
@@ -128,7 +133,8 @@ fun AppShell(prefs: AppPrefs) {
                             Dest.WEB -> WebSearchScreen(
                                 webUrl, prefs.privateMode, prefs.webScripts,
                                 onPageUrl = { page -> webUrl = page; prefs.setLastWebUrl(page) },
-                                onDownloads = { downloadsFrom = Dest.WEB; dest = Dest.DOWNLOADS }
+                                onDownloads = { downloadsFrom = Dest.WEB; dest = Dest.DOWNLOADS },
+                                onFullscreenChange = { webFullscreen = it }
                             ) {
                                 dest = Dest.HOME
                             }
@@ -157,7 +163,7 @@ fun AppShell(prefs: AppPrefs) {
                 }
             }
         }
-        if (started && Playback.hasEngine) {
+        if (started && Playback.hasEngine && !webFullscreen) {
             Playback.engine?.let { engine ->
                 PlayerSheet(
                     engine = engine,

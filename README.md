@@ -1,4 +1,6 @@
-# H Media Player (version 0.3.3)
+# H Media Player (version 0.5.1)
+
+Copyright (c) 2026 Himanshu. All rights reserved.
 
 An Android media player for your own videos and music, with internet search in its own viewer,
 IPTV from a playlist you supply, and the VOID playback engine.

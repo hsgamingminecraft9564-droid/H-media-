@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026 Himanshu. All rights reserved.
+ */
+
 package com.hmedia.player
 
 import android.annotation.SuppressLint
@@ -8,7 +12,14 @@ import android.net.Uri
 import android.net.http.SslError
 import android.os.Bundle
 import android.os.Message
+import android.content.pm.ActivityInfo
 import android.content.res.Configuration
+import android.view.View
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import android.widget.Toast
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.toArgb
@@ -61,6 +72,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.layout.padding
 
 // Holds the WebView without triggering Compose state writes while the view is being created
 private class WebHolder {
@@ -162,6 +174,7 @@ fun WebSearchScreen(
     webScripts: Boolean,
     onPageUrl: (String) -> Unit = {},
     onDownloads: () -> Unit = {},
+    onFullscreenChange: (Boolean) -> Unit = {},
     onBack: () -> Unit
 ) {
     // Page history saved when the screen pauses, restored when it is created again after rotation
@@ -186,7 +199,7 @@ fun WebSearchScreen(
     } else {
         // A new key builds a fresh WebView
         key(attempt) {
-            WebPage(url, privateMode, webScripts, saved, onBack, onPageUrl, onDownloads, onCrashed = { crashed = true })
+            WebPage(url, privateMode, webScripts, saved, onBack, onPageUrl, onDownloads, onFullscreenChange, onCrashed = { crashed = true })
         }
     }
 }
@@ -201,9 +214,15 @@ private fun WebPage(
     onBack: () -> Unit,
     onPageUrl: (String) -> Unit,
     onDownloads: () -> Unit,
+    onFullscreenChange: (Boolean) -> Unit,
     onCrashed: () -> Unit
 ) {
     val holder = remember { WebHolder() }
+    val pageContext = LocalContext.current
+    val pageActivity = remember(pageContext) { pageContext.findActivity() }
+    // A page video shown full screen (the page's own full screen button): its view and the way to close it
+    var fullView by remember { mutableStateOf<View?>(null) }
+    var fullCallback by remember { mutableStateOf<WebChromeClient.CustomViewCallback?>(null) }
     val lifecycleOwner = LocalLifecycleOwner.current
     var loading by remember { mutableStateOf(true) }
     var failed by remember { mutableStateOf(false) }
@@ -248,6 +267,27 @@ private fun WebPage(
         }
     }
 
+    // Full screen: system bars hidden and the phone turned sideways, the rest of the app hides its own bars
+    val full = fullView
+    DisposableEffect(full != null) {
+        val window = pageActivity?.window
+        if (full != null && window != null) {
+            val controller = WindowCompat.getInsetsController(window, window.decorView)
+            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+            pageActivity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        }
+        onFullscreenChange(full != null)
+        onDispose {
+            if (full != null) {
+                window?.let { WindowCompat.getInsetsController(it, it.decorView).show(WindowInsetsCompat.Type.systemBars()) }
+                pageActivity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                onFullscreenChange(false)
+            }
+        }
+    }
+
+    Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_back), contentDescription = stringResource(R.string.back)) }
@@ -305,8 +345,10 @@ private fun WebPage(
                             if (pageUrl != null && WebPolicy.isAllowedPage(pageUrl)) onPageUrl(pageUrl)
                         }
 
+                        // Only real connection problems on the page itself show the message. A blocked pop-up
+                        // address or an advert that fails to load must not hide a page that opened fine.
                         override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
-                            if (request.isForMainFrame) failed = true
+                            if (request.isForMainFrame && error.errorCode in NETWORK_ERROR_CODES) failed = true
                         }
 
                         // A crashed rendering process leaves the WebView unusable. Returning true keeps the app
@@ -319,13 +361,29 @@ private fun WebPage(
                         // Certificate errors are never accepted: the page stays blocked
                         override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
                             handler.cancel()
-                            failed = true
+                            // Other sites' certificates (adverts, trackers) do not count as a failed page
+                            if (error.url == view.url) failed = true
                         }
                     }
                     // Pages cannot open pop-up windows, use the camera or microphone, or read the location
                     webChromeClient = object : WebChromeClient() {
                         override fun onProgressChanged(view: WebView, newProgress: Int) {
                             loading = newProgress < 100
+                        }
+
+                        // The page's own full screen button for a video
+                        override fun onShowCustomView(view: View, callback: CustomViewCallback) {
+                            if (fullView != null) {
+                                callback.onCustomViewHidden()
+                                return
+                            }
+                            fullView = view
+                            fullCallback = callback
+                        }
+
+                        override fun onHideCustomView() {
+                            fullView = null
+                            fullCallback = null
                         }
 
                         override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message): Boolean = false
@@ -357,7 +415,31 @@ private fun WebPage(
             }
         )
     }
+        if (full != null) {
+            BackHandler {
+                fullCallback?.onCustomViewHidden()
+                fullView = null
+                fullCallback = null
+            }
+            DisposableEffect(full) { onDispose { (full.parent as? ViewGroup)?.removeView(full) } }
+            AndroidView(
+                modifier = Modifier.fillMaxSize().background(Color.Black),
+                factory = { c ->
+                    FrameLayout(c).apply {
+                        setBackgroundColor(android.graphics.Color.BLACK)
+                        addView(full, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+                    }
+                }
+            )
+        }
+    }
 }
+
+// Errors that mean the page itself could not be reached
+private val NETWORK_ERROR_CODES = setOf(
+    WebViewClient.ERROR_HOST_LOOKUP, WebViewClient.ERROR_CONNECT, WebViewClient.ERROR_TIMEOUT,
+    WebViewClient.ERROR_IO, WebViewClient.ERROR_FAILED_SSL_HANDSHAKE, WebViewClient.ERROR_PROXY_AUTHENTICATION
+)
 
 @Composable
 fun SettingsScreen(prefs: AppPrefs, onProfile: () -> Unit = {}, onDownloads: () -> Unit = {}, onBack: () -> Unit) {
@@ -468,6 +550,18 @@ fun SettingsScreen(prefs: AppPrefs, onProfile: () -> Unit = {}, onDownloads: () 
                     AppLanguage.setLanguage(lang.tag)
                 }
             }
+        }
+        Section(stringResource(R.string.about_title)) {
+            Text(
+                stringResource(R.string.about_version),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+            )
+            Text(
+                stringResource(R.string.about_copyright),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp)
+            )
         }
         Section(stringResource(R.string.privacy)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

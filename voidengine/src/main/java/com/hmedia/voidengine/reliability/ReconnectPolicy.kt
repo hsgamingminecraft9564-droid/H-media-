@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026 Himanshu. All rights reserved.
+ */
+
 package com.hmedia.voidengine.reliability
 
 /** Exponential back-off for dropped network streams. Delays: base, 2*base, 4*base ... capped at maxDelayMs. */
