@@ -1,4 +1,4 @@
-# SHA-256 of every file in HMediaPlayer-WEBSITE-0.5.1.zip (path relative to HMediaPlayer/)
+# SHA-256 of every file in HMediaPlayer-BUILDFIX-0.5.1.zip (path relative to HMediaPlayer/)
 
 0398c6a6f9a5e996a86e5535ced50f53e563fc841ee4b428f184682b04979d3a  .github/workflows/build.yml  (3652 bytes)
 c37a971bd2f6a25c65454090952f221ab223cb17e6e87b0e93277ed549a78975  .github/workflows/device-test.yml  (1337 bytes)
@@ -46,7 +46,7 @@ c7f57f8d7ee8e740a7b0e05e4c82090b362226ede2782238e69f634211d91bab  app/src/main/j
 5e31d0ec44d38ba911ead3978a2ec64ca79f91b269800e0b37e159d48a46d185  app/src/main/java/com/hmedia/player/Theme.kt  (3697 bytes)
 90772c75a6e90dd5e0ffc5f4e57e20bca9f5d60d2ac5be659547f318400822b8  app/src/main/java/com/hmedia/player/Thumbnails.kt  (2553 bytes)
 dab511d9f2506c3938e8cbffc6e8cd5a7e0376e51b4c5d89f04ea9b3cd73af3f  app/src/main/java/com/hmedia/player/VideoIndex.kt  (2457 bytes)
-357b9275f28d3a15e76009e8cdb62c8e2f83eaf4dfc9592ab6b3ce0714d79172  app/src/main/java/com/hmedia/player/VideoPlayer.kt  (17298 bytes)
+d3ec012fa459b32ef9276487abc9c733d85ae7907ed9b1f90b2a7566a75a69d5  app/src/main/java/com/hmedia/player/VideoPlayer.kt  (17343 bytes)
 dc72750c5abea44530654e229ff9fb77ec443f321e299a4b2e39d8452520d0cc  app/src/main/java/com/hmedia/player/i18n/AppLanguage.kt  (6011 bytes)
 68e3bff9d56aa27fa88c2ea7a872f1f5788fd5ba8859d5746f88791650a9c52d  app/src/main/java/com/hmedia/player/search/SearchApi.kt  (3032 bytes)
 3b6cbb0ef7e95c817c9ab621d1bbba78de319077662984e2f787fff66e544771  app/src/main/java/com/hmedia/player/search/SearchUrl.kt  (3200 bytes)
