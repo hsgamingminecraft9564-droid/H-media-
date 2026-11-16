@@ -3,14 +3,14 @@
 Static checks on the files in this package. Nothing was compiled, unit-tested or run on a phone
 in the environment that produced this package. See BUG-REPAIR-RECORD-0.3.0.md for the status of each defect.
 
-- [PASS] Kotlin brackets balanced (75 files)
+- [PASS] Kotlin brackets balanced (77 files)
 - [PASS] XML well-formed (69 files)
 - [PASS] every R.drawable and R.string reference exists
 - [PASS] translations: keys and placeholders match English (8 languages)
 - [PASS] manifest references exist
 - [PASS] settings include existing modules
 - [PASS] resource file names are legal
-- [PASS] imports: every symbol used is imported (30 app files)
+- [PASS] imports: every symbol used is imported (32 app files)
 
 Result: 8 of 8 static checks pass.
 

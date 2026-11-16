@@ -73,6 +73,10 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 
 // Holds the WebView without triggering Compose state writes while the view is being created
 private class WebHolder {
@@ -289,11 +293,6 @@ private fun WebPage(
 
     Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_back), contentDescription = stringResource(R.string.back)) }
-            Spacer(Modifier.weight(1f))
-            IconButton(onClick = onDownloads) { Icon(painterResource(R.drawable.ic_download), contentDescription = stringResource(R.string.downloads_title)) }
-        }
         if (loading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         if (failed) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -442,20 +441,48 @@ private val NETWORK_ERROR_CODES = setOf(
 )
 
 @Composable
-fun SettingsScreen(prefs: AppPrefs, onProfile: () -> Unit = {}, onDownloads: () -> Unit = {}, onBack: () -> Unit) {
+fun SettingsScreen(prefs: AppPrefs, onProfile: () -> Unit = {}, onDownloads: () -> Unit = {}, onNotes: () -> Unit = {}, onBack: () -> Unit) {
     val backgroundContext = LocalContext.current
     val backgroundPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) saveBackground(backgroundContext, uri)?.let { prefs.setBackgroundPath(it) }
     }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
-        IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_back), contentDescription = stringResource(R.string.back)) }
-        Text(stringResource(R.string.settings), style = MaterialTheme.typography.headlineSmall)
+        var page by rememberSaveable { mutableStateOf<String?>(null) }
+        BackHandler(enabled = page != null) { page = null }
+        val titleRes = when (page) {
+            "general" -> R.string.settings_cat_general
+            "appearance" -> R.string.settings_cat_appearance
+            "playback" -> R.string.settings_cat_playback
+            "search" -> R.string.settings_cat_search
+            "privacy" -> R.string.settings_cat_privacy
+            "library" -> R.string.settings_cat_library
+            else -> R.string.settings
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = {
+                if (page != null) {
+                    page = null
+                } else {
+                    onBack()
+                }
+            }) { Icon(painterResource(R.drawable.ic_back), contentDescription = stringResource(R.string.back)) }
+            Text(stringResource(titleRes), style = MaterialTheme.typography.headlineSmall)
+        }
+        Spacer(Modifier.height(8.dp))
+        if (page == null) {
+            CategoryRow(stringResource(R.string.settings_cat_general), stringResource(R.string.settings_cat_general_sub)) { page = "general" }
+            CategoryRow(stringResource(R.string.settings_cat_appearance), stringResource(R.string.settings_cat_appearance_sub)) { page = "appearance" }
+            CategoryRow(stringResource(R.string.settings_cat_playback), stringResource(R.string.settings_cat_playback_sub)) { page = "playback" }
+            CategoryRow(stringResource(R.string.settings_cat_search), stringResource(R.string.settings_cat_search_sub)) { page = "search" }
+            CategoryRow(stringResource(R.string.settings_cat_privacy), stringResource(R.string.settings_cat_privacy_sub)) { page = "privacy" }
+            CategoryRow(stringResource(R.string.settings_cat_library), stringResource(R.string.settings_cat_library_sub)) { page = "library" }
+        }
 
-        Section(stringResource(R.string.account)) {
+        if (page == "general") Section(stringResource(R.string.account)) {
             OptionRow(stringResource(R.string.profile_open), false) { onProfile() }
             Text(stringResource(R.string.signed_in_as, stringResource(R.string.guest)))
         }
-        Section(stringResource(R.string.player_section)) {
+        if (page == "playback") Section(stringResource(R.string.player_section)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(stringResource(R.string.resume_playback))
@@ -464,10 +491,13 @@ fun SettingsScreen(prefs: AppPrefs, onProfile: () -> Unit = {}, onDownloads: () 
                 Switch(checked = prefs.resumeEnabled, onCheckedChange = prefs::setResumeEnabled)
             }
         }
-        Section(stringResource(R.string.downloads_title)) {
+        if (page == "library") Section(stringResource(R.string.notes_title)) {
+            OptionRow(stringResource(R.string.notes_title), false) { onNotes() }
+        }
+        if (page == "library") Section(stringResource(R.string.downloads_title)) {
             OptionRow(stringResource(R.string.downloads_open), false) { onDownloads() }
         }
-        Section(stringResource(R.string.theme)) {
+        if (page == "appearance") Section(stringResource(R.string.theme)) {
             HTheme.entries.forEach { t ->
                 OptionRow(t.label, prefs.theme == t) {
                     prefs.setTheme(t)
@@ -476,7 +506,7 @@ fun SettingsScreen(prefs: AppPrefs, onProfile: () -> Unit = {}, onDownloads: () 
                 }
             }
         }
-        Section(stringResource(R.string.accent_color)) {
+        if (page == "appearance") Section(stringResource(R.string.accent_color)) {
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -491,10 +521,10 @@ fun SettingsScreen(prefs: AppPrefs, onProfile: () -> Unit = {}, onDownloads: () 
                 Switch(checked = prefs.amoled, onCheckedChange = prefs::setAmoled)
             }
         }
-        Section(stringResource(R.string.font)) {
+        if (page == "appearance") Section(stringResource(R.string.font)) {
             HFont.entries.forEach { f -> OptionRow(f.label, prefs.font == f) { prefs.setFont(f) } }
         }
-        Section(stringResource(R.string.background_title)) {
+        if (page == "appearance") Section(stringResource(R.string.background_title)) {
             OptionRow(stringResource(R.string.background_choose), prefs.backgroundPath.isNotEmpty() && !prefs.backgroundPath.startsWith("res:")) {
                 backgroundPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
             }
@@ -532,14 +562,14 @@ fun SettingsScreen(prefs: AppPrefs, onProfile: () -> Unit = {}, onDownloads: () 
                 }
             }
         }
-        Section(stringResource(R.string.search_engine_title)) {
+        if (page == "search") Section(stringResource(R.string.search_engine_title)) {
             SearchProviders.all.forEach { provider ->
                 OptionRow(provider.name, prefs.searchProvider == provider.key) {
                     prefs.setSearchProvider(provider.key)
                 }
             }
         }
-        Section(stringResource(R.string.language)) {
+        if (page == "general") Section(stringResource(R.string.language)) {
             OptionRow(stringResource(R.string.language_system_default), prefs.language == "system") {
                 prefs.setLanguage("system")
                 AppLanguage.setLanguage(null)
@@ -551,7 +581,7 @@ fun SettingsScreen(prefs: AppPrefs, onProfile: () -> Unit = {}, onDownloads: () 
                 }
             }
         }
-        Section(stringResource(R.string.about_title)) {
+        if (page == "general") Section(stringResource(R.string.about_title)) {
             Text(
                 stringResource(R.string.about_version),
                 style = MaterialTheme.typography.bodyMedium,
@@ -563,7 +593,7 @@ fun SettingsScreen(prefs: AppPrefs, onProfile: () -> Unit = {}, onDownloads: () 
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp)
             )
         }
-        Section(stringResource(R.string.privacy)) {
+        if (page == "privacy") Section(stringResource(R.string.privacy)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(stringResource(R.string.web_scripts))
@@ -577,6 +607,20 @@ fun SettingsScreen(prefs: AppPrefs, onProfile: () -> Unit = {}, onDownloads: () 
             }
             TextButton(onClick = prefs::clearRecent) { Text(stringResource(R.string.clear_recent)) }
         }
+    }
+}
+
+@Composable
+private fun CategoryRow(title: String, subtitle: String, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Text(">", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

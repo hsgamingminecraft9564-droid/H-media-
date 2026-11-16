@@ -1,5 +1,36 @@
 # H Media Player: changelog
 
+## 0.5.6
+### Changed
+- Settings opens as a short list of categories (General, Appearance and themes, Playback, Internet search, Privacy, Library and storage). Each category opens its own page with the same controls as before, in small groups.
+### Not added yet
+- Equaliser, subtitles, casting and device sync, and media intelligence from the settings plan. They are not built, so they are not shown.
+### Not verified
+- Not compiled or tested on a phone yet.
+
+## 0.5.5
+### Added
+- My notes (Personal Media Memory, from the implementation guide): private notes and timestamp bookmarks, kept only on this phone. Add a bookmark from the player menu at the current position, or write a note about the playing file. Search, delete, and tap an entry to open its file at the saved time. Find it in Settings.
+### Notes
+- A file that has been moved or deleted shows a message instead of crashing. Relinking a moved file and exporting notes are not in this version.
+### Not verified
+- Not compiled or tested on a phone yet. Seeking to a bookmark right after a file starts may need a small adjustment on some devices.
+
+## 0.5.4
+### Changed
+- Dragging the mini player down past the bar dismisses it and stops playback, like YouTube.
+- While browsing the internet search, the app's bottom bar, the mini player and the page's top bar are hidden. Android's back button returns to the previous page, and then to the app. Downloads are still listed on the search screen and in Settings.
+### Not verified
+- Not compiled or tested on a phone yet.
+
+## 0.5.3
+### Changed
+- Every published build is signed with the same key (set in GitHub secrets), so a new version installs over the old one as an update. See SIGNING-SETUP.md.
+### Notes
+- Phones with a build from before this version need one uninstall first. Uninstalling removes the app's settings and lists.
+### Not verified
+- Not compiled or tested on a phone yet.
+
 ## 0.5.2
 ### Fixed
 - Dragging the player down no longer pauses playback. A video keeps playing in the mini player.

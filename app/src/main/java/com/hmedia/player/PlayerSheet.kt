@@ -34,6 +34,7 @@ fun PlayerSheet(
     engine: VoidEngine,
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
+    onDismiss: () -> Unit,
     barHeight: Dp,
     onSearch: () -> Unit = {},
     miniContent: @Composable () -> Unit
@@ -60,14 +61,19 @@ fun PlayerSheet(
             }
         }
 
+        // Pulling the mini player further down, once it has closed, dismisses it and stops playback
+        val dismissPx = with(density) { 72.dp.toPx() }
+        var pulled = 0f
         val drag = Modifier.pointerInput(fullPx) {
             detectVerticalDragGestures(
+                onDragStart = { pulled = 0f },
                 onVerticalDrag = { change, dragAmount ->
                     change.consume()
+                    if (progress.value <= 0f && dragAmount > 0f) pulled += dragAmount
                     val range = (fullPx - miniPx).coerceAtLeast(1f)
                     scope.launch { progress.snapTo((progress.value - dragAmount / range).coerceIn(0f, 1f)) }
                 },
-                onDragEnd = { settle() },
+                onDragEnd = { if (pulled > dismissPx) onDismiss() else settle() },
                 onDragCancel = { settle() }
             )
         }

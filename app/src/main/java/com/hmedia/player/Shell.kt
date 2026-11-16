@@ -35,7 +35,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.shape.CircleShape
 
-enum class Dest { HOME, VIDEO, MUSIC, IPTV, WEB, SETTINGS, PLAYER, SEARCH, PROFILE, DOWNLOADS }
+enum class Dest { HOME, VIDEO, MUSIC, IPTV, WEB, SETTINGS, PLAYER, SEARCH, PROFILE, DOWNLOADS, NOTES }
 
 private const val SEARCH_HOME = "https://www.google.com/"
 private const val SEARCH_QUERY = "https://www.google.com/search?q="
@@ -82,7 +82,7 @@ fun AppShell(prefs: AppPrefs) {
 
     // Back from Video, Music, IPTV or Settings returns to Home instead of leaving the app.
     // The web page and the player handle Back themselves.
-    BackHandler(enabled = started && (dest == Dest.VIDEO || dest == Dest.MUSIC || dest == Dest.IPTV || dest == Dest.SETTINGS || dest == Dest.SEARCH || dest == Dest.PROFILE)) {
+    BackHandler(enabled = started && (dest == Dest.VIDEO || dest == Dest.MUSIC || dest == Dest.IPTV || dest == Dest.SETTINGS || dest == Dest.SEARCH || dest == Dest.PROFILE || dest == Dest.DOWNLOADS || dest == Dest.NOTES)) {
         dest = Dest.HOME
     }
 
@@ -113,7 +113,7 @@ fun AppShell(prefs: AppPrefs) {
         if (!started) {
             WelcomeScreen(prefs) { started = true }
         } else {
-            val showNav = dest != Dest.PLAYER && !webFullscreen
+            val showNav = dest != Dest.PLAYER && !webFullscreen && dest != Dest.WEB
             Row(Modifier.fillMaxSize()) {
                 if (showNav && useRail) {
                     SideRail(current = dest) { selected -> dest = selected }
@@ -141,9 +141,11 @@ fun AppShell(prefs: AppPrefs) {
                             Dest.SETTINGS -> SettingsScreen(
                                 prefs,
                                 onProfile = { dest = Dest.PROFILE },
-                                onDownloads = { downloadsFrom = Dest.SETTINGS; dest = Dest.DOWNLOADS }
+                                onDownloads = { downloadsFrom = Dest.SETTINGS; dest = Dest.DOWNLOADS },
+                                onNotes = { dest = Dest.NOTES }
                             ) { dest = Dest.HOME }
                             Dest.DOWNLOADS -> DownloadsScreen(prefs, onPlayed = { openPlayer(Dest.DOWNLOADS) }) { dest = downloadsFrom }
+                        Dest.NOTES -> NotesScreen(prefs, onPlayed = { openPlayer(Dest.NOTES) }) { dest = Dest.SETTINGS }
                         Dest.SEARCH -> SearchHubScreen(prefs, onSearch = { q, c -> searchWeb(q, c) }) { dest = Dest.HOME }
                         Dest.PROFILE -> ProfileScreen(prefs) { dest = Dest.SETTINGS }
                             Dest.PLAYER -> {
@@ -163,12 +165,16 @@ fun AppShell(prefs: AppPrefs) {
                 }
             }
         }
-        if (started && Playback.hasEngine && !webFullscreen) {
+        if (started && Playback.hasEngine && !webFullscreen && dest != Dest.WEB) {
             Playback.engine?.let { engine ->
                 PlayerSheet(
                     engine = engine,
                     expanded = playerExpanded,
                     onExpandedChange = { playerExpanded = it },
+                    onDismiss = {
+                        playerExpanded = false
+                        Playback.stop()
+                    },
                     barHeight = if (useRail) 0.dp else 88.dp,
                     onSearch = { playerExpanded = false; dest = Dest.SEARCH },
                     miniContent = { NowPlayingStrip { playerExpanded = true } }

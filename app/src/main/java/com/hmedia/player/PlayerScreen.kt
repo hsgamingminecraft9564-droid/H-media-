@@ -79,6 +79,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
+import android.widget.Toast
 
 internal val SPEEDS = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 3f, 4f)
 
@@ -595,9 +596,11 @@ private fun PlayerTopBar(onBack: () -> Unit, onSearch: () -> Unit, onQueue: () -
         }
         Box {
             IconButton(onClick = { menu = true }) { MoreDots() }
+            val bookmarkContext = LocalContext.current
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 DropdownMenuItem(text = { Text(stringResource(R.string.player_minimize)) }, onClick = { menu = false; onBack() })
                 DropdownMenuItem(text = { Text(stringResource(R.string.player_playlist)) }, onClick = { menu = false; onQueue() })
+                DropdownMenuItem(text = { Text(stringResource(R.string.notes_bookmark)) }, onClick = { menu = false; addBookmark(bookmarkContext) })
                 DropdownMenuItem(text = { Text(stringResource(R.string.player_settings)) }, onClick = { menu = false; onSettings() })
             }
         }
@@ -911,4 +914,12 @@ private fun MediaSurface(engine: VoidEngine, isAudio: Boolean, artwork: ImageBit
             )
         }
     }
+}
+
+// Saves the current position of the playing file as a bookmark in My notes
+private fun addBookmark(ctx: Context) {
+    val uri = Playback.currentUri ?: return
+    val position = Playback.engine?.snapshot?.value?.positionMs ?: 0L
+    MediaNotes.add(ctx, uri.toString(), Playback.title, position, "")
+    Toast.makeText(ctx, R.string.notes_bookmark_saved, Toast.LENGTH_SHORT).show()
 }
