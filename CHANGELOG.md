@@ -1,6 +1,8 @@
 # H Media Player: changelog
 
 ## 0.5.6
+### Fixed
+- The build workflow failed to load because of a secret check. It now reads the signing key inside the script.
 ### Changed
 - Settings opens as a short list of categories (General, Appearance and themes, Playback, Internet search, Privacy, Library and storage). Each category opens its own page with the same controls as before, in small groups.
 ### Not added yet
